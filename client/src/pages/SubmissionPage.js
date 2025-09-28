@@ -61,7 +61,18 @@ const FileInputLabel = styled.label`
 const FileInput = styled.input`
   display: none;
 `;
-
+const AdminLoginButton = styled(motion.button)`
+  background: transparent;
+  color: ${({ theme }) => theme.buttonBg};
+  border: 2px solid ${({ theme }) => theme.buttonBg};
+  border-radius: 10px;
+  padding: 0.8rem 1.2rem;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 1rem;
+  width: 100%;
+`;
 const SubmitButton = styled(motion.button)`
   background: ${({ theme }) => theme.buttonBg};
   color: ${({ theme }) => theme.buttonText};
@@ -126,35 +137,47 @@ const SubmissionPage = ({ toggleTheme, currentTheme }) => {
   };
 
   return (
-    <Card
-      initial={{ opacity: 0, y: -50 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <ThemeToggle toggleTheme={toggleTheme} currentTheme={currentTheme} />
-      <Title>Hello Cloakker 🐱‍💻🐱‍💻🐱</Title>
-      <Form onSubmit={handleSubmit}>
-        <TextArea
-          placeholder="Enter your anonymous message here..."
-          value={textMessage}
-          onChange={(e) => setTextMessage(e.target.value)}
-          required
-        />
-        <FileInputLabel>
-          {fileName}
-          <FileInput type="file" onChange={handleFileChange} />
-        </FileInputLabel>
-        {error && <ErrorMessage>{error}</ErrorMessage>}
-        <SubmitButton
+    <>
+      <Card
+        initial={{ opacity: 0, y: -50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <ThemeToggle toggleTheme={toggleTheme} currentTheme={currentTheme} />
+        <Title>Hello Cloakker 🐱‍💻🐱‍💻🐱</Title>
+        <Form onSubmit={handleSubmit}>
+          <TextArea
+            placeholder="Enter your anonymous message here..."
+            value={textMessage}
+            onChange={(e) => setTextMessage(e.target.value)}
+            required
+          />
+          <FileInputLabel>
+            {fileName}
+            <FileInput type="file" onChange={handleFileChange} />
+          </FileInputLabel>
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          <SubmitButton
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            type="submit"
+            disabled={loading}
+          >
+            {loading ? "Submitting..." : "Submitted!!"}
+          </SubmitButton>
+        </Form>
+      </Card>
+
+      <>
+        <AdminLoginButton
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          type="submit"
-          disabled={loading}
+          onClick={() => navigate("/admin/login")}
         >
-          {loading ? 'Submitting...' : 'Submit Securely'}
-        </SubmitButton>
-      </Form>
-    </Card>
+          Go to Admin Login
+        </AdminLoginButton>
+      </>
+    </>
   );
 };
 

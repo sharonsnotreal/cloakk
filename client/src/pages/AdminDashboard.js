@@ -236,17 +236,17 @@ const AdminDashboard = () => {
     navigate('/admin/login');
   };
 
-  // const handleUpdate = async (id, updateData) => {
-  //   try {
-  //     const token = getToken();
-  //     await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, updateData, {
-  //       headers: { Authorization: `Bearer ${token}` }
-  //     });
-  //     fetchData(); // Refetch to show updated state
-  //   } catch (err) {
-  //     alert('Failed to update submission.');
-  //   }
-  // };
+  const handleUpdate = async (id, updateData) => {
+    try {
+      const token = getToken();
+      await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, updateData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData(); // Refetch to show updated state
+    } catch (err) {
+      alert('Failed to update submission.');
+    }
+  };
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to move this to the bin?')) {
