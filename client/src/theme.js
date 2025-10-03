@@ -1,33 +1,37 @@
 import { createGlobalStyle } from 'styled-components';
 
-export const lightTheme = {
-  body: '#F4F7FC',
-  text: '#1a1a1a',
-  cardBg: '#FFFFFF',
-  inputBg: '#E9EEF7',
-  buttonBg: '#3b82f6',
-  buttonText: '#FFFFFF',
-  borderColor: '#D1D9E6',
-};
+export const theme = {
+  // Colors
+  background: '#F0F2F5', // Light grey background
+  white: '#FFFFFF',
+  darkGrey: '#737373',
+  lightGrey: '#E5E7EB',
+  black: '#000000',
+  primary: '#333333',
+  
+  // Fonts
+  fontFamily: "'Inter', sans-serif",
 
-export const darkTheme = {
-  body: '#1a202c',
-  text: '#e2e8f0',
-  cardBg: '#2d3748',
-  inputBg: '#4a5568',
-  buttonBg: '#60a5fa',
-  buttonText: '#1a202c',
-  borderColor: '#4a5568',
+  // Borders
+  borderRadius: '12px',
+  borderColor: '#E5E7EB',
 };
 
 export const GlobalStyles = createGlobalStyle`
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
   body {
-    background-color: ${({ theme }) => theme.body};
-    color: ${({ theme }) => theme.text};
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    transition: all 0.30s linear;
+    background-color: ${({ theme }) => theme.background};
+    color: ${({ theme }) => theme.primary};
+    font-family: ${({ theme }) => theme.fontFamily};
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  *, *::before, *::after {
+    box-sizing: inherit;
   }
 `;

@@ -2,185 +2,275 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
+import { 
+    FiInbox, FiTrash2, FiArchive, FiLogOut, FiEdit, FiChevronLeft, FiChevronRight, 
+    FiSearch, FiDownload, FiCheckCircle, FiAlertCircle, FiEyeOff, FiUser, FiEye 
+} from 'react-icons/fi';
 
-// --- STYLED COMPONENTS ---
+// --- STYLED COMPONENTS 
 
-const DashboardContainer = styled(motion.div)`
-  width: 100%;
-  max-width: 1200px;
-  min-height: 80vh;
-  background: ${({ theme }) => theme.cardBg};
-  border-radius: 20px;
-  padding: 2rem;
-  border: 1px solid ${({ theme }) => theme.borderColor};
-`;
-
-const Header = styled.div`
+const DashboardLayout = styled.div`
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
+  height: 100vh;
+  width: 100vw;
+  background-color: ${({ theme }) => theme.bg};
 `;
 
-const Title = styled.h1`
-  font-size: 2rem;
+// --- Sidebar ---
+const Sidebar = styled.div`
+  width: 250px;
+  background-color: ${({ theme }) => theme.bg};
+  border-right: 1px solid ${({ theme }) => theme.border};
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+`;
+
+const NavGroup = styled.div`
+  margin-bottom: 2rem;
+`;
+
+const NavGroupTitle = styled.h5`
+    color: ${({ theme }) => theme.textSecondary};
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    margin: 0 0 0.5rem 0.8rem;
+`;
+
+const NavItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  color: ${({ theme, active }) => active ? theme.text : theme.textSecondary};
+  background-color: ${({ theme, active }) => active ? theme.cardBg : 'transparent'};
+  
+  &:hover {
+    background-color: ${({ theme }) => theme.cardBg};
+    color: ${({ theme }) => theme.text};
+  }
+`;
+
+const SidebarFooter = styled.div`
+  margin-top: auto;
+  border-top: 1px solid ${({ theme }) => theme.border};
+  padding-top: 1rem;
 `;
 
 const UserProfile = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  background: ${({ theme }) => theme.inputBg};
-  padding: 0.5rem 1rem;
-  border-radius: 30px;
+  gap: 0.8rem;
+  padding: 0.5rem;
+  border-radius: 4px;
 `;
 
-const UserIcon = styled.span`
-  font-size: 1.5rem;
+const UserIcon = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: ${({ theme }) => theme.cardBg};
+  color: ${({ theme }) => theme.textSecondary};
+  font-size: 1.2rem;
 `;
 
 const UserName = styled.span`
-  font-weight: bold;
+  font-weight: 600;
+  flex: 1; /* Pushes the logout button to the far right */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 `;
 
 const LogoutButton = styled.button`
-  background: transparent;
-  color: ${({ theme }) => theme.text};
+  background: none;
   border: none;
   cursor: pointer;
-  font-size: 1rem;
-  opacity: 0.7;
-  &:hover { opacity: 1; }
-`;
-
-const ControlsContainer = styled.div`
+  color: ${({ theme }) => theme.textSecondary};
+  font-size: 1.2rem;
+  padding: 0.5rem;
+  border-radius: 4px;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-`;
 
-const FilterGroup = styled.div`
+  &:hover {
+    background-color: ${({ theme }) => theme.cardBg};
+    color: ${({ theme }) => theme.text};
+  }
+`;
+// --- Message List Panel ---
+const MessageListPanel = styled.div`
+  width: 350px;
+  background-color: ${({ theme }) => theme.bg};
+  border-right: 1px solid ${({ theme }) => theme.border};
   display: flex;
-  gap: 1rem;
+  flex-direction: column;
 `;
 
-const Select = styled.select`
-  background: ${({ theme }) => theme.inputBg};
-  color: ${({ theme }) => theme.text};
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
+const SearchBarContainer = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+  position: relative;
 `;
 
 const SearchInput = styled.input`
-  background: ${({ theme }) => theme.inputBg};
-  color: ${({ theme }) => theme.text};
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  border-radius: 8px;
-  padding: 0.5rem 1rem;
-  width: 250px;
+  width: 100%;
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  border-radius: 4px;
+  border: 1px solid ${({ theme }) => theme.border};
+  background-color: ${({ theme }) => theme.cardBg};
+  font-family: inherit;
+  font-size: 0.9rem;
+  &:focus {
+    outline: 1px solid ${({ theme }) => theme.text};
+  }
 `;
 
-const ViewBinButton = styled.button`
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-`;
-const BackButton = styled(ViewBinButton)`
-  background: ${({ theme }) => theme.buttonBg};
-  color: ${({ theme }) => theme.buttonText};
+const SearchIcon = styled(FiSearch)`
+  position: absolute;
+  left: 1.8rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: ${({ theme }) => theme.textSecondary};
 `;
 
-const SubmissionList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const SubmissionItemCard = styled(motion.div)`
-  background: ${({ theme, isViewed }) => isViewed ? theme.inputBg : theme.cardBg};
-  padding: 1.5rem;
-  border-radius: 15px;
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  border-left: 5px solid ${({ theme, flag }) => 
-    flag === 'urgent' ? '#ef4444' : 
-    flag === 'important' ? '#f59e0b' : 
-    theme.borderColor
-  };
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1.5rem;
-`;
-
-const MessageContent = styled.div`
+const MessageList = styled.div`
+  overflow-y: auto;
   flex: 1;
 `;
 
-const MessageText = styled.p`
-  margin: 0;
-  white-space: pre-wrap; /* Respects newlines in the message */
+const MessageListItem = styled.div`
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+  cursor: pointer;
+  background-color: ${({ theme, active }) => active ? theme.cardBg : 'transparent'};
+  
+  h4, p {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  h4 { font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
+  p { font-size: 0.9rem; color: ${({ theme }) => theme.textSecondary}; }
 `;
 
-const MetaData = styled.div`
-  font-size: 0.8rem;
-  opacity: 0.7;
-  margin-top: 1rem;
-`;
 
-const Actions = styled.div`
+const MessageDetailPanel = styled.div`
+  flex: 1;
+  padding: 2rem 3rem;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: 0.75rem;
+  overflow-y: auto;
 `;
 
-const ActionButton = styled.button`
-  background: ${({ theme }) => theme.inputBg};
+const DetailHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+  padding-bottom: 1.5rem;
+`;
+
+const HeaderInfo = styled.div`
+  h2 { margin: 0; font-size: 1.5rem; }
+  p { margin: 0; color: ${({ theme }) => theme.textSecondary}; font-size: 0.9rem; }
+`;
+
+const HeaderActions = styled.div`
+  display: flex;
+  gap: 1.5rem;
+  font-size: 1.2rem;
+  color: ${({ theme }) => theme.textSecondary};
+  
+  svg { 
+    cursor: pointer; 
+    &:hover { color: ${({ theme }) => theme.text}; } 
+  }
+
+  .urgent-flag.active {
+      color: #ef4444;
+  }
+  .important-flag.active {
+      color: #f59e0b;
+  }
+`;
+
+const MessageBody = styled.div`
+  font-size: 1rem;
+  line-height: 1.7;
+  flex: 1;
+  white-space: pre-wrap;
+`;
+
+const Attachment = styled.a`
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid ${({ theme }) => theme.border};
+  border-radius: 4px;
+  text-decoration: none;
   color: ${({ theme }) => theme.text};
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
+  background-color: ${({ theme }) => theme.cardBg};
+`;
+
+const Placeholder = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: ${({ theme }) => theme.textSecondary};
+`;
+
+const ListHeader = styled.div`
+  padding: 1rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border};
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+`;
+
+const SortSelect = styled.select`
+  background-color: transparent;
+  border: none;
+  color: ${({ theme }) => theme.textSecondary};
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
   cursor: pointer;
-  &:hover {
-    background: ${({ theme }) => theme.borderColor};
+  &:focus {
+    outline: none;
   }
 `;
-const DeleteButton = styled(ActionButton)`
-  color: #ef4444;
-  &:hover {
-    background: #ef4444;
-    color: white;
-  }
-`;
+
 
 
 // --- MAIN COMPONENT ---
-
 const AdminDashboard = () => {
+  // --- STATE MANAGEMENT 
   const [admin, setAdmin] = useState(null);
   const [submissions, setSubmissions] = useState([]);
   const [binItems, setBinItems] = useState([]);
-  const [view, setView] = useState('dashboard'); // 'dashboard' or 'bin'
-  const [filters, setFilters] = useState({ viewed: 'all', flagged: 'all' });
-  const [sortBy, setSortBy] = useState('createdAt_desc');
+  const [activeSubmission, setActiveSubmission] = useState(null);
+  const [view, setView] = useState('inbox'); 
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [sortBy, setSortBy] = useState('createdAt_desc'); 
+  const [filters, setFilters] = useState({ viewed: 'all', flagged: 'all' });
   const navigate = useNavigate();
 
-  // --- AUTHENTICATION & DATA FETCHING ---
-
+  // --- API & DATA LOGIC
   const getToken = () => {
     const adminInfo = localStorage.getItem('adminInfo');
     return adminInfo ? JSON.parse(adminInfo).token : null;
@@ -189,6 +279,7 @@ const AdminDashboard = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError('');
+    setActiveSubmission(null); // Reset active view on re-fetch
     const token = getToken();
     if (!token) {
       navigate('/admin/login');
@@ -196,28 +287,26 @@ const AdminDashboard = () => {
     }
     
     try {
-      let url = '';
       if (view === 'bin') {
-        url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/bin`;
+        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/bin`;
         const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
         setBinItems(data);
+        if (data.length > 0) setActiveSubmission(data[0]);
       } else {
         const params = new URLSearchParams();
-        if (filters.viewed !== 'all') params.append('viewed', filters.viewed);
-        if (filters.flagged !== 'all') params.append('flagged', filters.flagged);
         if (searchTerm) params.append('search', searchTerm);
-        params.append('sort', sortBy);
-        
-        url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions?${params.toString()}`;
+        params.append('sort', sortBy)
+        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions?${params.toString()}`;
         const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
         setSubmissions(data);
+        if (data.length > 0) setActiveSubmission(data[0]);
       }
     } catch (err) {
       setError('Failed to fetch data. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [navigate, view, filters, sortBy, searchTerm]);
+  }, [navigate, view, searchTerm,  sortBy]);
 
   useEffect(() => {
     const adminInfo = localStorage.getItem('adminInfo');
@@ -229,25 +318,23 @@ const AdminDashboard = () => {
     fetchData();
   }, [navigate, fetchData]);
 
-  // --- HANDLER FUNCTIONS ---
-
+  // --- HANDLER FUNCTIONS (Unchanged Logic, added activeSubmission logic) ---
   const handleLogout = () => {
     localStorage.removeItem('adminInfo');
     navigate('/admin/login');
   };
-
   const handleUpdate = async (id, updateData) => {
     try {
       const token = getToken();
       await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      fetchData(); // Refetch to show updated state
+      // Refetch data to get the latest state for the entire list
+      fetchData(); 
     } catch (err) {
       alert('Failed to update submission.');
     }
   };
-
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to move this to the bin?')) {
       try {
@@ -255,115 +342,185 @@ const AdminDashboard = () => {
         await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        fetchData(); // Refetch to remove from list
+        fetchData(); // Refetch to remove from list and update view
       } catch (err) {
         alert('Failed to delete submission.');
       }
     }
   };
 
+  // --- RENDER LOGIC (New JSX Structure) ---
+  if (!admin) return null; // Or a loading spinner
 
-  // --- RENDER LOGIC ---
-
-  if (!admin) return null;
+  const currentList = view === 'inbox' ? submissions : binItems;
 
   return (
-    <DashboardContainer initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <Header>
-        <Title>{view === 'dashboard' ? 'Submissions Dashboard' : 'Deleted Items Bin'}</Title>
-        <UserProfile>
-          <UserIcon>👤</UserIcon>
-          <UserName>{admin.username}</UserName>
-          <LogoutButton onClick={handleLogout}>Logout</LogoutButton>
-        </UserProfile>
-      </Header>
+    <DashboardLayout>
+      <Sidebar>
+        {/* Simplified sidebar based on the design */}
+        <NavGroup>
+          <NavItem active={view === "inbox"} onClick={() => setView("inbox")}>
+            <FiInbox /> Inbox
+          </NavItem>
+          {/* Add your "Reviewed", "Important" etc. filters here if needed */}
+        </NavGroup>
 
-      {/* --- CONTROLS --- */}
-      <ControlsContainer>
-        {view === 'dashboard' ? (
+        <NavGroup>
+          <NavGroupTitle>Status</NavGroupTitle>
+          <NavItem
+            active={filters.viewed === "all"}
+            onClick={() => setFilters({ ...filters, viewed: "all" })}
+          >
+            <FiCheckCircle /> All
+          </NavItem>
+          <NavItem
+            active={filters.viewed === "false"}
+            onClick={() => setFilters({ ...filters, viewed: "false" })}
+          >
+            <FiEyeOff /> Unviewed
+          </NavItem>
+        </NavGroup>
+
+        <NavGroup>
+          <NavGroupTitle>Flags</NavGroupTitle>
+          <NavItem
+            active={filters.flagged === "urgent"}
+            onClick={() => setFilters({ ...filters, flagged: "urgent" })}
+          >
+            <FiAlertCircle color="#ef4444" /> Urgent
+          </NavItem>
+          <NavItem
+            active={filters.flagged === "important"}
+            onClick={() => setFilters({ ...filters, flagged: "important" })}
+          >
+            <FiAlertCircle color="#f59e0b" /> Important
+          </NavItem>
+        </NavGroup>
+
+        <NavGroup>
+          <NavItem active={view === "bin"} onClick={() => setView("bin")}>
+            <FiTrash2 /> Trash
+          </NavItem>
+          <NavItem>
+            <FiArchive /> Archive
+          </NavItem>
+        </NavGroup>
+        <SidebarFooter>
+          <UserProfile>
+            <UserIcon>
+              <FiUser />
+            </UserIcon>
+            <UserName>{admin.username}</UserName>
+            <LogoutButton onClick={handleLogout} title="Logout">
+              <FiLogOut />
+            </LogoutButton>
+          </UserProfile>
+        </SidebarFooter>
+      </Sidebar>
+
+      <MessageListPanel>
+        <SearchBarContainer>
+          <SearchIcon />
+          <SearchInput
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </SearchBarContainer>
+
+        {view === "inbox" && (
+          <ListHeader>
+            <SortSelect
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="createdAt_desc">Sort by Newest</option>
+              <option value="createdAt_asc">Sort by Oldest</option>
+            </SortSelect>
+          </ListHeader>
+        )}
+        
+        <MessageList>
+          {loading && <p style={{ padding: "1rem" }}>Loading...</p>}
+          {error && <p style={{ padding: "1rem", color: "red" }}>{error}</p>}
+          {!loading &&
+            currentList.map((sub) => (
+              <MessageListItem
+                key={sub._id}
+                active={activeSubmission?._id === sub._id}
+                onClick={() => setActiveSubmission(sub)}
+              >
+                <h4>#{sub.receiptCode}</h4>
+                <p>{sub.textMessage}</p>
+              </MessageListItem>
+            ))}
+        </MessageList>
+      </MessageListPanel>
+
+      <MessageDetailPanel>
+        {activeSubmission ? (
           <>
-            <FilterGroup>
-              <Select value={filters.viewed} onChange={e => setFilters({...filters, viewed: e.target.value})}>
-                <option value="all">All Statuses</option>
-                <option value="false">Unviewed</option>
-                <option value="true">Viewed</option>
-              </Select>
-              <Select value={filters.flagged} onChange={e => setFilters({...filters, flagged: e.target.value})}>
-                <option value="all">All Flags</option>
-                <option value="urgent">Urgent</option>
-                <option value="important">Important</option>
-              </Select>
-              <Select value={sortBy} onChange={e => setSortBy(e.target.value)}>
-                  <option value="createdAt_desc">Sort by Newest</option>
-                  <option value="createdAt_asc">Sort by Oldest</option>
-              </Select>
-            </FilterGroup>
-            <SearchInput
-              type="text"
-              placeholder="Search by keyword..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
-            <ViewBinButton onClick={() => setView('bin')}>View Bin</ViewBinButton>
+            <DetailHeader>
+              <HeaderInfo>
+                <h2>#{activeSubmission.receiptCode}</h2>
+                <p>{new Date(activeSubmission.createdAt).toLocaleString()}</p>
+              </HeaderInfo>
+              <HeaderActions>
+                <FiChevronLeft />
+                <FiChevronRight />
+                <FiEdit />
+
+                {/* View/Unview Toggle */}
+                {activeSubmission.isViewed ? (
+                  <FiEyeOff title="Mark as Unviewed" onClick={() => handleUpdate(activeSubmission._id, { isViewed: false })} />
+                ) : (
+                  <FiEye title="Mark as Viewed" onClick={() => handleUpdate(activeSubmission._id, { isViewed: true })} />
+                )}
+
+                {/* Flag as Important */}
+                <FiAlertCircle 
+                  title="Flag as Important"
+                  className={`important-flag ${activeSubmission.isFlagged === 'important' ? 'active' : ''}`}
+                  onClick={() => handleUpdate(activeSubmission._id, { isFlagged: activeSubmission.isFlagged === 'important' ? 'none' : 'important' })}
+                />
+                
+                {/* Flag as Urgent */}
+                <FiAlertCircle 
+                  title="Flag as Urgent"
+                  className={`urgent-flag ${activeSubmission.isFlagged === 'urgent' ? 'active' : ''}`}
+                  onClick={() => handleUpdate(activeSubmission._id, { isFlagged: activeSubmission.isFlagged === 'urgent' ? 'none' : 'urgent' })}
+                />
+                <FiTrash2 onClick={() => handleDelete(activeSubmission._id)} />
+              </HeaderActions>
+            </DetailHeader>
+            <MessageBody>
+              {activeSubmission.textMessage}
+              {activeSubmission.file && (
+                <Attachment
+                  href={`${
+                    process.env.REACT_APP_API_URL || "http://localhost:5000"
+                  }${activeSubmission.file.path}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <FiDownload />
+                  {activeSubmission.file.originalName || "Download Attachment"}
+                </Attachment>
+              )}
+            </MessageBody>
           </>
         ) : (
-          <BackButton onClick={() => setView('dashboard')}>Back to Dashboard</BackButton>
+          <Placeholder>
+            {loading ? "Loading..." : "Select a message to read."}
+          </Placeholder>
         )}
-      </ControlsContainer>
-
-      {/* --- SUBMISSION LIST / BIN --- */}
-      <SubmissionList>
-        {loading && <p>Loading...</p>}
-        {error && <p style={{ color: 'red' }}>{error}</p>}
-        <AnimatePresence>
-          {!loading && view === 'dashboard' && submissions.map(sub => (
-            <SubmissionItemCard
-              key={sub._id}
-              isViewed={sub.isViewed}
-              flag={sub.isFlagged}
-              layout
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            >
-              <MessageContent>
-                <MessageText>{sub.textMessage}</MessageText>
-                <MetaData>
-                  Received: {new Date(sub.createdAt).toLocaleString()}
-                </MetaData>
-              </MessageContent>
-              <Actions>
-                {sub.file && <a href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${sub.file.path}`} target="_blank" rel="noopener noreferrer"><ActionButton>Download Attachment</ActionButton></a>}
-                <ActionButton onClick={() => handleUpdate(sub._id, { isViewed: !sub.isViewed })}>
-                  {sub.isViewed ? 'Mark as Unviewed' : 'Mark as Viewed'}
-                </ActionButton>
-                <Select
-                  value={sub.isFlagged || 'none'}
-                  onChange={e => handleUpdate(sub._id, { isFlagged: e.target.value })}
-                >
-                  <option value="none">No Flag</option>
-                  <option value="important">Important</option>
-                  <option value="urgent">Urgent</option>
-                </Select>
-                <DeleteButton onClick={() => handleDelete(sub._id)}>Delete</DeleteButton>
-              </Actions>
-            </SubmissionItemCard>
-          ))}
-
-          {!loading && view === 'bin' && binItems.map(item => (
-             <SubmissionItemCard key={item._id} isViewed={true} layout>
-                <MessageContent>
-                    <MessageText>{item.textMessage}</MessageText>
-                    <MetaData>
-                        Deleted by: {item.deletedBy?.username || 'Unknown'} on {new Date(item.deletedAt).toLocaleString()}
-                    </MetaData>
-                </MessageContent>
-            </SubmissionItemCard>
-          ))}
-        </AnimatePresence>
-      </SubmissionList>
-    </DashboardContainer>
+      </MessageDetailPanel>
+    </DashboardLayout>
   );
 };
 
 export default AdminDashboard;
+
+
+
+

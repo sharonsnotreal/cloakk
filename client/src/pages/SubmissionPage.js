@@ -1,184 +1,196 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import ThemeToggle from '../components/ThemeToggle';
+import { motion } from 'framer-motion';
+import { FiAlertTriangle, FiShield, FiFileText } from 'react-icons/fi';
 
-const Card = styled(motion.div)`
-  background: ${({ theme }) => theme.cardBg};
-  padding: 3rem;
-  border-radius: 20px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+const PageContainer = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+`;
+
+const MainCard = styled(motion.div)`
+  display: flex;
   width: 100%;
-  max-width: 600px;
+  max-width: 1100px;
+  background: ${({ theme }) => theme.white};
+  border-radius: ${({ theme }) => theme.borderRadius};
   border: 1px solid ${({ theme }) => theme.borderColor};
-  position: relative;
+  overflow: hidden;
 `;
 
-const Title = styled.h1`
-  font-size: 2.5rem;
-  text-align: center;
-  margin-bottom: 2rem;
-  color: ${({ theme }) => theme.text};
+const DisclaimerPanel = styled.div`
+  flex: 1;
+  background: #F9FAFB;
+  padding: 2rem;
+  color: ${({ theme }) => theme.darkGrey};
 `;
 
-const Form = styled.form`
+const DisclaimerItem = styled.div`
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+
+  svg {
+    flex-shrink: 0;
+    margin-top: 3px;
+    font-size: 1.2rem;
+  }
+`;
+
+const FormPanel = styled.div`
+  flex: 1.2;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 `;
 
-const TextArea = styled.textarea`
-  background: ${({ theme }) => theme.inputBg};
-  color: ${({ theme }) => theme.text};
-  border: 1px solid ${({ theme }) => theme.borderColor};
-  border-radius: 10px;
-  padding: 1rem;
-  font-size: 1rem;
-  min-height: 150px;
-  resize: vertical;
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.buttonBg};
-  }
+const Title = styled.h2`
+  font-size: 1.5rem;
+  margin: 0 0 2rem 0;
+  text-align: center;
 `;
 
-const FileInputLabel = styled.label`
-  background: ${({ theme }) => theme.inputBg};
-  color: ${({ theme }) => theme.text};
-  border: 2px dashed ${({ theme }) => theme.borderColor};
-  border-radius: 10px;
+const DragDropArea = styled.label`
+  border: 2px dashed ${({ theme }) => theme.lightGrey};
+  border-radius: 8px;
   padding: 2rem;
   text-align: center;
+  margin-bottom: 1rem;
   cursor: pointer;
-  transition: all 0.2s ease-in-out;
+  transition: border-color 0.2s;
   &:hover {
-    border-color: ${({ theme }) => theme.buttonBg};
+    border-color: ${({ theme }) => theme.primary};
   }
 `;
 
-const FileInput = styled.input`
-  display: none;
-`;
-const AdminLoginButton = styled(motion.button)`
-  background: transparent;
-  color: ${({ theme }) => theme.buttonBg};
-  border: 2px solid ${({ theme }) => theme.buttonBg};
-  border-radius: 10px;
-  padding: 0.8rem 1.2rem;
-  font-size: 1rem;
-  font-weight: bold;
-  cursor: pointer;
-  margin-top: 1rem;
+const MessageInput = styled.textarea`
   width: 100%;
-`;
-const SubmitButton = styled(motion.button)`
-  background: ${({ theme }) => theme.buttonBg};
-  color: ${({ theme }) => theme.buttonText};
-  border: none;
-  border-radius: 10px;
+  min-height: 150px;
+  border: 1px solid ${({ theme }) => theme.lightGrey};
+  border-radius: 8px;
   padding: 1rem;
-  font-size: 1.2rem;
-  font-weight: bold;
+  font-family: inherit;
+  font-size: 1rem;
+  resize: vertical;
+  margin-bottom: 1rem;
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.primary};
+  }
+`;
+
+const SubmitButton = styled.button`
+  background: ${({ theme }) => theme.black};
+  color: white;
+  border: none;
+  padding: 0.8rem;
+  border-radius: 8px;
+  font-size: 1rem;
   cursor: pointer;
+  transition: opacity 0.2s;
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;
 
 const ErrorMessage = styled.p`
   color: #ef4444;
   text-align: center;
+  font-size: 0.9rem;
 `;
 
-const SubmissionPage = ({ toggleTheme, currentTheme }) => {
-  const [textMessage, setTextMessage] = useState('');
-  const [file, setFile] = useState(null);
-  const [fileName, setFileName] = useState('Click to attach a file (optional)');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+const SubmissionPage = () => {
+    // Same logic as before, just with new styled components
+    const [textMessage, setTextMessage] = useState('');
+    const [file, setFile] = useState(null);
+    const [fileName, setFileName] = useState('drag and drop or click to upload');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setFileName(selectedFile.name);
-    }
-  };
+    const handleFileChange = (e) => {
+        const selectedFile = e.target.files[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setFileName(selectedFile.name);
+        }
+    };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!textMessage) {
-      setError('A text message is required.');
-      return;
-    }
-    setLoading(true);
-    setError('');
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!textMessage) {
+            setError('A text message is required.');
+            return;
+        }
+        setLoading(true);
+        setError('');
 
-    const formData = new FormData();
-    formData.append('textMessage', textMessage);
-    if (file) {
-      formData.append('file', file);
-    }
-    
-    try {
-      // Remember to set this in your environment variables for production
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      const response = await axios.post(`${apiUrl}/api/submissions`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-      navigate('/success', { state: { receipt: response.data.receiptCode } });
-    } catch (err) {
-      setError(err.response?.data?.message || 'Submission failed. Please try again later.');
-    } finally {
-      setLoading(false);
-    }
-  };
+        const formData = new FormData();
+        formData.append('textMessage', textMessage);
+        if (file) {
+            formData.append('file', file);
+        }
+        
+        try {
+            const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+            const response = await axios.post(`${apiUrl}/api/submissions`, formData);
+            navigate('/success', { state: { receipt: response.data.receiptCode } });
+        } catch (err) {
+            setError(err.response?.data?.message || 'Submission failed.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
-  return (
-    <>
-      <Card
-        initial={{ opacity: 0, y: -50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <ThemeToggle toggleTheme={toggleTheme} currentTheme={currentTheme} />
-        <Title>Hello Cloakker 🐱‍💻🐱‍💻🐱</Title>
-        <Form onSubmit={handleSubmit}>
-          <TextArea
-            placeholder="Enter your anonymous message here..."
-            value={textMessage}
-            onChange={(e) => setTextMessage(e.target.value)}
-            required
-          />
-          <FileInputLabel>
-            {fileName}
-            <FileInput type="file" onChange={handleFileChange} />
-          </FileInputLabel>
-          {error && <ErrorMessage>{error}</ErrorMessage>}
-          <SubmitButton
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            type="submit"
-            disabled={loading}
-          >
-            {loading ? "Submitting..." : "Submitted!!"}
-          </SubmitButton>
-        </Form>
-      </Card>
-
-      <>
-        <AdminLoginButton
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => navigate("/admin/login")}
-        >
-          Go to Admin Login
-        </AdminLoginButton>
-      </>
-    </>
-  );
+    return (
+        <PageContainer>
+            <MainCard initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <DisclaimerPanel>
+                    <DisclaimerItem>
+                        <FiAlertTriangle style={{ color: '#F59E0B' }} />
+                        <div>
+                            <strong>Disclaimer</strong>
+                            <p>Cloakk is a tool designed for honesty and accountability. By using this platform, you agree to submit truthful, accurate, and respectful content.</p>
+                            <p>Abuse of this system for malicious, harmful, or defamatory purposes is strictly discouraged...</p>
+                        </div>
+                    </DisclaimerItem>
+                    <DisclaimerItem>
+                        <FiShield style={{ color: '#10B981' }} />
+                        <div>Your submission will remain confidential, encrypted, and unlinked to your identity.</div>
+                    </DisclaimerItem>
+                    <DisclaimerItem>
+                        <FiFileText />
+                        <div>Supported file types: PDF, DOCX, JPG, PNG, MP4</div>
+                    </DisclaimerItem>
+                </DisclaimerPanel>
+                <FormPanel as="form" onSubmit={handleSubmit}>
+                    <Title>Submit Anonymously</Title>
+                    <DragDropArea>
+                        {fileName}
+                        <input type="file" hidden onChange={handleFileChange} />
+                    </DragDropArea>
+                    <MessageInput 
+                        placeholder="Write message..."
+                        value={textMessage}
+                        onChange={e => setTextMessage(e.target.value)}
+                    />
+                    {error && <ErrorMessage>{error}</ErrorMessage>}
+                    <SubmitButton type="submit" disabled={loading}>
+                        {loading ? 'Submitting...' : 'Submit'}
+                    </SubmitButton>
+                </FormPanel>
+            </MainCard>
+        </PageContainer>
+    );
 };
 
 export default SubmissionPage;

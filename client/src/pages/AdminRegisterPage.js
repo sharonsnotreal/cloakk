@@ -63,7 +63,6 @@ const LoginButton = styled.button`
 `;
 
 
-
 // const AppName = styled.h1`
 //   font-size: 5rem;
 //   font-weight: 700;
@@ -81,7 +80,7 @@ const ErrorMessage = styled.p`
 `;
 
 
-const AdminLoginPage = () => {
+const AdminRegisterPage = () => {
     // Same logic as before
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -96,7 +95,7 @@ const AdminLoginPage = () => {
 
         try {
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-            const response = await axios.post(`${apiUrl}/api/admin/login`, { username, password });
+            const response = await axios.post(`${apiUrl}/api/admin/create`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
             navigate('/admin/dashboard');
         } catch (err) {
@@ -114,11 +113,11 @@ const AdminLoginPage = () => {
                     <Input type="text" value={username} onChange={e => setUsername(e.target.value)} />
                     <label>Password</label>
                     <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                    <LoginButton type="submit" disabled={loading}>Login Admin</LoginButton>
+                    <LoginButton type="submit" disabled={loading}>Signup Admin</LoginButton>
                     {error && <ErrorMessage>{error}</ErrorMessage>}
                 </FormPanel>
                 <LogoPanel>
-                    {/* <AppName></AppName> */}
+                    {/* <AppName>Cloakk</AppName> */}
                     <LogoImage src="/cloakk.png" />
                 </LogoPanel>
             </LoginContainer>
@@ -126,4 +125,4 @@ const AdminLoginPage = () => {
     );
 };
 
-export default AdminLoginPage;
+export default AdminRegisterPage;
