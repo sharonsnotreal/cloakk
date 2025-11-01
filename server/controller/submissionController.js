@@ -17,9 +17,8 @@ const generateReceiptCode = () => {
  */
 const createSubmission = asyncHandler(async (req, res) => {
   const { textMessage } = req.body;
-   
 
-      if (!textMessage) {
+  if (!textMessage) {
     res.status(400);
     throw new Error("Text message is required");
   }
@@ -31,23 +30,39 @@ const createSubmission = asyncHandler(async (req, res) => {
     receiptCode: generateReceiptCode(),
   };
 
-  if (req.file) {
-    submissionData.file = {
-      originalName: req.file.originalname,
-      path: req.file.path,
-      mimetype: req.file.mimetype,
-    };
+  const files = Array.isArray(req.files)
+    ? req.files
+    : req.file
+    ? [req.file]
+    : [];
+
+  if (files.length > 0) {
+    submissionData.files = files.map((f) => ({
+      originalName: f.originalname,
+      path: f.path || null,
+      filename: f.filename || null,
+      mimetype: f.mimetype || null,
+      size: f.size || null,
+      url: f.location || f.url || null,
+      key: f.key || null,
+      fieldname: f.fieldname || null,
+    }));
   }
+  // if (req.file) {
+  //   submissionData.file = {
+  //     originalName: req.file.originalname,
+  //     path: req.file.path,
+  //     mimetype: req.file.mimetype,
+  //   };
+  // }
 
   const submission = await Submission.create(submissionData);
 
   res.status(201).json({
     message: "Submission received successfully.",
     receiptCode: submission.receiptCode,
+    fileCount: submissionData.files ? submissionData.files.length : 0,
   });
-    
-
-  
 });
 
 /**

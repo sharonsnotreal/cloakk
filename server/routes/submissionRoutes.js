@@ -15,8 +15,8 @@ const { scanAndUpload } = require("../middleware/scanMiddleWare");
 router.post(
   "/",
   timeRestriction,
-  upload.single("file"),
-  // upload.array("images", 5),
+  // upload.single("file"),
+  upload.array("files", 5),
   // fileCheck,
   scanAndUpload,
   createSubmission
