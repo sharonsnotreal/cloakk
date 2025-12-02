@@ -10,6 +10,11 @@ const PageContainer = styled.div`
   justify-content: center;
   min-height: 100vh;
   width: 100vw;
+  padding: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.5rem;
+  }
 `;
 
 const LoginContainer = styled(motion.div)`
@@ -19,6 +24,12 @@ const LoginContainer = styled(motion.div)`
   height: 600px;
   border-radius: ${({ theme }) => theme.borderRadius};
   overflow: hidden;
+
+  @media (max-width: 900px) {
+    flex-direction: column-reverse;
+    height: auto;
+    max-width: 95%;
+  }
 `;
 
 const FormPanel = styled.div`
@@ -28,6 +39,22 @@ const FormPanel = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  @media (max-width: 900px) {
+    padding: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1.2rem;
+  }
+
+  label {
+    font-size: 1rem;
+
+    @media (max-width: 600px) {
+      font-size: 0.9rem;
+    }
+  }
 `;
 
 const LogoPanel = styled.div`
@@ -38,6 +65,10 @@ const LogoPanel = styled.div`
   align-items: center;
   justify-content: center;
   gap: 1rem;
+
+  @media (max-width: 900px) {
+    padding: 2rem 1rem;
+  }
 `;
 
 const Input = styled.input`
@@ -48,6 +79,11 @@ const Input = styled.input`
   padding: 0.8rem 1rem;
   font-size: 1rem;
   margin-bottom: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+  }
 `;
 
 const LoginButton = styled.button`
@@ -60,24 +96,36 @@ const LoginButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   margin-top: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
 `;
-
-
-// const AppName = styled.h1`
-//   font-size: 5rem;
-//   font-weight: 700;
-//   margin: 0;
-// `;
 
 const LogoImage = styled.img`
   width: 200px;
+
+  @media (max-width: 900px) {
+    width: 170px;
+  }
+
+  @media (max-width: 600px) {
+    width: 140px;
+  }
 `;
 
 const ErrorMessage = styled.p`
   color: #ef4444;
   text-align: center;
   font-size: 0.9rem;
+  margin-top: 1rem;
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+  }
 `;
+
 
 
 const AdminRegisterPage = () => {

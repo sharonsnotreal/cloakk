@@ -15,16 +15,35 @@ const DashboardLayout = styled.div`
   height: 100vh;
   width: 100vw;
   background-color: ${({ theme }) => theme.bg};
+  box-sizing: border-box;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    height: auto;
+    width: 100%;
+  }
 `;
 
 // --- Sidebar ---
 const Sidebar = styled.div`
-  width: 250px;
+  flex: 0 0 250px;
   background-color: ${({ theme }) => theme.bg};
   border-right: 1px solid ${({ theme }) => theme.border};
   padding: 1.5rem;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+
+  @media (max-width: 900px) {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-right: none;
+    border-bottom: 1px solid ${({ theme }) => theme.border};
+    overflow-x: auto;
+    white-space: nowrap;
+  }
 `;
 
 const NavGroup = styled.div`
@@ -87,6 +106,9 @@ const UserName = styled.span`
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  @media (max-width: 900px) {
+    display: none; /* hide username on narrow screens to save space */
+  }
 `;
 
 const LogoutButton = styled.button`
@@ -107,11 +129,20 @@ const LogoutButton = styled.button`
 `;
 // --- Message List Panel ---
 const MessageListPanel = styled.div`
-  width: 350px;
+  flex: 0 0 350px;
   background-color: ${({ theme }) => theme.bg};
   border-right: 1px solid ${({ theme }) => theme.border};
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+
+  @media (max-width: 900px) {
+    order: 2;
+    flex: 0 0 auto;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid ${({ theme }) => theme.border};
+  }
 `;
 
 const SearchBarContainer = styled.div`
@@ -160,6 +191,14 @@ const MessageListItem = styled.div`
   }
   h4 { font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
   p { font-size: 0.9rem; color: ${({ theme }) => theme.textSecondary}; }
+
+  @media (max-width: 900px) {
+    h4, p {
+      white-space: normal;
+      overflow: visible;
+      text-overflow: clip;
+    }
+  }
 `;
 
 
@@ -169,6 +208,11 @@ const MessageDetailPanel = styled.div`
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+
+  @media (max-width: 900px) {
+    order: 3;
+    padding: 1rem 1rem;
+  }
 `;
 
 const DetailHeader = styled.div`
@@ -276,47 +320,47 @@ const AdminDashboard = () => {
     return adminInfo ? JSON.parse(adminInfo).token : null;
   };
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError('');
-    setActiveSubmission(null); // Reset active view on re-fetch
-    const token = getToken();
-    if (!token) {
-      navigate('/admin/login');
-      return;
-    }
+  // const fetchData = useCallback(async () => {
+  //   setLoading(true);
+  //   setError('');
+  //   setActiveSubmission(null); // Reset active view on re-fetch
+  //   const token = getToken();
+  //   if (!token) {
+  //     navigate('/admin/login');
+  //     return;
+  //   }
     
-    try {
-      if (view === 'bin') {
-        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/bin`;
-        const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
-        setBinItems(data);
-        if (data.length > 0) setActiveSubmission(data[0]);
-      } else {
-        const params = new URLSearchParams();
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('sort', sortBy)
-        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions?${params.toString()}`;
-        const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
-        setSubmissions(data);
-        if (data.length > 0) setActiveSubmission(data[0]);
-      }
-    } catch (err) {
-      setError('Failed to fetch data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, view, searchTerm,  sortBy]);
+  //   try {
+  //     if (view === 'bin') {
+  //       const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/bin`;
+  //       const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  //       setBinItems(data);
+  //       if (data.length > 0) setActiveSubmission(data[0]);
+  //     } else {
+  //       const params = new URLSearchParams();
+  //       if (searchTerm) params.append('search', searchTerm);
+  //       params.append('sort', sortBy)
+  //       const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions?${params.toString()}`;
+  //       const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+  //       setSubmissions(data);
+  //       if (data.length > 0) setActiveSubmission(data[0]);
+  //     }
+  //   } catch (err) {
+  //     setError('Failed to fetch data. Please try again.');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // }, [navigate, view, searchTerm,  sortBy]);
 
-  useEffect(() => {
-    const adminInfo = localStorage.getItem('adminInfo');
-    if (adminInfo) {
-      setAdmin(JSON.parse(adminInfo));
-    } else {
-      navigate('/admin/login');
-    }
-    fetchData();
-  }, [navigate, fetchData]);
+  // useEffect(() => {
+  //   const adminInfo = localStorage.getItem('adminInfo');
+  //   if (adminInfo) {
+  //     setAdmin(JSON.parse(adminInfo));
+  //   } else {
+  //     navigate('/admin/login');
+  //   }
+  //   fetchData();
+  // }, [navigate, fetchData]);
 
   // --- HANDLER FUNCTIONS (Unchanged Logic, added activeSubmission logic) ---
   const handleLogout = () => {
@@ -326,11 +370,13 @@ const AdminDashboard = () => {
   const handleUpdate = async (id, updateData) => {
     try {
       const token = getToken();
-      await axios.put(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, updateData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      // Refetch data to get the latest state for the entire list
-      fetchData(); 
+      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`;
+      await axios.put(url, updateData, { headers: { Authorization: `Bearer ${token}` } });
+
+      // Optimistically update local state so UI reflects view/unview/flags immediately
+      setSubmissions((prev) => prev.map((s) => (s._id === id ? { ...s, ...updateData } : s)));
+      setBinItems((prev) => prev.map((s) => (s._id === id ? { ...s, ...updateData } : s)));
+      setActiveSubmission((prev) => (prev && prev._id === id ? { ...prev, ...updateData } : prev));
     } catch (err) {
       alert('Failed to update submission.');
     }
@@ -342,7 +388,18 @@ const AdminDashboard = () => {
         await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        fetchData(); // Refetch to remove from list and update view
+        // Remove locally and pick a sensible next active submission
+        setSubmissions((prev) => prev.filter((s) => s._id !== id));
+        setBinItems((prev) => prev.filter((s) => s._id !== id));
+        setActiveSubmission((prev) => {
+          if (!prev) return null;
+          if (prev._id === id) {
+            // choose next from submissions if available
+            const remaining = submissions.filter((s) => s._id !== id);
+            return remaining.length > 0 ? remaining[0] : null;
+          }
+          return prev;
+        });
       } catch (err) {
         alert('Failed to delete submission.');
       }

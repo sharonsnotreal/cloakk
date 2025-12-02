@@ -4,13 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
-
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 2rem;
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const MainCard = styled(motion.div)`
@@ -21,6 +24,11 @@ const MainCard = styled(motion.div)`
   border-radius: ${({ theme }) => theme.borderRadius};
   border: 1px solid ${({ theme }) => theme.borderColor};
   overflow: hidden;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    max-width: 95%;
+  }
 `;
 
 const DisclaimerPanel = styled.div`
@@ -28,6 +36,14 @@ const DisclaimerPanel = styled.div`
   background: #F9FAFB;
   padding: 2rem;
   color: ${({ theme }) => theme.darkGrey};
+
+  @media (max-width: 900px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const DisclaimerItem = styled.div`
@@ -43,6 +59,15 @@ const DisclaimerItem = styled.div`
     margin-top: 3px;
     font-size: 1.2rem;
   }
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+    gap: 0.7rem;
+
+    svg {
+      font-size: 1rem;
+    }
+  }
 `;
 
 const FormPanel = styled.div`
@@ -50,12 +75,25 @@ const FormPanel = styled.div`
   padding: 2rem;
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 900px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const Title = styled.h2`
   font-size: 1.5rem;
   margin: 0 0 2rem 0;
   text-align: center;
+
+  @media (max-width: 600px) {
+    font-size: 1.25rem;
+    margin-bottom: 1.2rem;
+  }
 `;
 
 const DragDropArea = styled.label`
@@ -66,8 +104,14 @@ const DragDropArea = styled.label`
   margin-bottom: 1rem;
   cursor: pointer;
   transition: border-color 0.2s;
+
   &:hover {
     border-color: ${({ theme }) => theme.primary};
+  }
+
+  @media (max-width: 600px) {
+    padding: 1.5rem;
+    font-size: 0.9rem;
   }
 `;
 
@@ -81,9 +125,15 @@ const MessageInput = styled.textarea`
   font-size: 1rem;
   resize: vertical;
   margin-bottom: 1rem;
+
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.primary};
+  }
+
+  @media (max-width: 600px) {
+    min-height: 120px;
+    font-size: 0.9rem;
   }
 `;
 
@@ -96,9 +146,15 @@ const SubmitButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   transition: opacity 0.2s;
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 600px) {
+    padding: 0.7rem;
+    font-size: 0.95rem;
   }
 `;
 
@@ -106,8 +162,11 @@ const ErrorMessage = styled.p`
   color: #ef4444;
   text-align: center;
   font-size: 0.9rem;
-`;
 
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+  }
+`;
 const SubmissionPage = () => {
   const [textMessage, setTextMessage] = useState("");
   const [files, setFiles] = useState([]); // array of File objects
