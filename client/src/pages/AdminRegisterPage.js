@@ -3,13 +3,20 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-
+import { postUser, updateUser } from '../service/userService';
+import pbkdf2 from "pbkdf2";
+import crypto from "crypto";
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   width: 100vw;
+  padding: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.5rem;
+  }
 `;
 
 const LoginContainer = styled(motion.div)`
@@ -19,6 +26,12 @@ const LoginContainer = styled(motion.div)`
   height: 600px;
   border-radius: ${({ theme }) => theme.borderRadius};
   overflow: hidden;
+
+  @media (max-width: 900px) {
+    flex-direction: column-reverse;
+    height: auto;
+    max-width: 95%;
+  }
 `;
 
 const FormPanel = styled.div`
@@ -28,6 +41,22 @@ const FormPanel = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  @media (max-width: 900px) {
+    padding: 2rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1.2rem;
+  }
+
+  label {
+    font-size: 1rem;
+
+    @media (max-width: 600px) {
+      font-size: 0.9rem;
+    }
+  }
 `;
 
 const LogoPanel = styled.div`
@@ -38,6 +67,10 @@ const LogoPanel = styled.div`
   align-items: center;
   justify-content: center;
   gap: 1rem;
+
+  @media (max-width: 900px) {
+    padding: 2rem 1rem;
+  }
 `;
 
 const Input = styled.input`
@@ -48,6 +81,11 @@ const Input = styled.input`
   padding: 0.8rem 1rem;
   font-size: 1rem;
   margin-bottom: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.95rem;
+  }
 `;
 
 const LoginButton = styled.button`
@@ -60,24 +98,36 @@ const LoginButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   margin-top: 1rem;
+
+  @media (max-width: 600px) {
+    padding: 0.7rem;
+    font-size: 0.95rem;
+  }
 `;
-
-
-// const AppName = styled.h1`
-//   font-size: 5rem;
-//   font-weight: 700;
-//   margin: 0;
-// `;
 
 const LogoImage = styled.img`
   width: 200px;
+
+  @media (max-width: 900px) {
+    width: 170px;
+  }
+
+  @media (max-width: 600px) {
+    width: 140px;
+  }
 `;
 
 const ErrorMessage = styled.p`
   color: #ef4444;
   text-align: center;
   font-size: 0.9rem;
+  margin-top: 1rem;
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+  }
 `;
+
 
 
 const AdminRegisterPage = () => {
@@ -94,6 +144,38 @@ const AdminRegisterPage = () => {
         setError('');
 
         try {
+      //     const auth = pbkdf2
+      //   .pbkdf2Sync(password, username, 25000, 64, "sha512")
+      //   .toString("hex");
+
+      // const { data: user } = await postUser({ username, auth });
+
+      // const { _id, auth: _auth, salt } = user;
+
+      // const ecdh = crypto.createECDH("secp521r1");
+      // const passphrase = pbkdf2
+      //   .pbkdf2Sync(_auth + password, salt, 25000, 64, "sha512")
+      //   .toString("hex");
+
+      // const publicKey = JSON.stringify(ecdh.generateKeys());
+      // const pbkHash = CryptoJS.SHA256(publicKey).toString();
+      // const privateKey = ecdh.getPrivateKey();
+      // const privateKeyCipher = CryptoJS.AES.encrypt(
+      //   JSON.stringify(privateKey),
+      //   passphrase
+      // ).toString();
+      //   const { data: _user } = await updateUser(_id, {
+      //       username,
+      //       privateKeyCipher,
+      //       publicKey,
+      //       pbkHash
+      //     });
+
+      // console.log(_user);
+      // localStorage.setItem('adminInfo', JSON.stringify(_user));
+      // alert("Account has been created.");
+      // history.push("/login");
+
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const response = await axios.post(`${apiUrl}/api/admin/create`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
