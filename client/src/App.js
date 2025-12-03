@@ -42,7 +42,7 @@ function App() {
           <Route path="/submit" element={<SubmissionPage />} />
           <Route path="/success" element={<SuccessPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin/Register" element={<AdminRegisterPage />} />
+          <Route path="/admin/register" element={<AdminRegisterPage />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
         </Routes>
       </Router>
