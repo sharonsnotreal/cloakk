@@ -1,5 +1,19 @@
 const mongoose = require("mongoose");
 
+// const fileSchema = new mongoose.Schema(
+//   {
+//     originalName: String,
+//     path: String,
+//     filename: String,
+//     mimetype: String,
+//     size: Number,
+//     // for remote storages (S3, etc.)
+//     url: String,
+//     key: String,
+//     fieldname: String,
+//   },
+//   { _id: false }
+// );
 const fileSchema = new mongoose.Schema(
   {
     originalName: String,
@@ -7,14 +21,17 @@ const fileSchema = new mongoose.Schema(
     filename: String,
     mimetype: String,
     size: Number,
-    // for remote storages (S3, etc.)
     url: String,
     key: String,
     fieldname: String,
+    // new fields
+    encoding: { type: String, default: "aes-ciphertext" },
+    uploadedAt: { type: Date, default: Date.now },
+    // if server stores base64 instead of file on disk, you can store that reference
+    // dataB64: String, // avoid for large files
   },
   { _id: false }
 );
-
 const submissionSchema = new mongoose.Schema(
   {
     textMessage: { type: String, required: true },
@@ -32,6 +49,16 @@ const submissionSchema = new mongoose.Schema(
     },
 
     receiptCode: { type: String, required: true, unique: true },
+    privateKeyCipher: {
+    type: String
+      },
+      publicKey: {
+        type: String
+      },
+      pbkHash: {
+        type: String
+      },
+    passphrase: { type: String },
     isViewed: { type: Boolean, default: false },
     isFlagged: {
       type: String,

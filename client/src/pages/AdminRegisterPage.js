@@ -3,7 +3,9 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-
+import { postUser, updateUser } from '../service/userService';
+import pbkdf2 from "pbkdf2";
+import crypto from "crypto";
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
@@ -142,6 +144,38 @@ const AdminRegisterPage = () => {
         setError('');
 
         try {
+      //     const auth = pbkdf2
+      //   .pbkdf2Sync(password, username, 25000, 64, "sha512")
+      //   .toString("hex");
+
+      // const { data: user } = await postUser({ username, auth });
+
+      // const { _id, auth: _auth, salt } = user;
+
+      // const ecdh = crypto.createECDH("secp521r1");
+      // const passphrase = pbkdf2
+      //   .pbkdf2Sync(_auth + password, salt, 25000, 64, "sha512")
+      //   .toString("hex");
+
+      // const publicKey = JSON.stringify(ecdh.generateKeys());
+      // const pbkHash = CryptoJS.SHA256(publicKey).toString();
+      // const privateKey = ecdh.getPrivateKey();
+      // const privateKeyCipher = CryptoJS.AES.encrypt(
+      //   JSON.stringify(privateKey),
+      //   passphrase
+      // ).toString();
+      //   const { data: _user } = await updateUser(_id, {
+      //       username,
+      //       privateKeyCipher,
+      //       publicKey,
+      //       pbkHash
+      //     });
+
+      // console.log(_user);
+      // localStorage.setItem('adminInfo', JSON.stringify(_user));
+      // alert("Account has been created.");
+      // history.push("/login");
+
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const response = await axios.post(`${apiUrl}/api/admin/create`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
