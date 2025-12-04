@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import pbkdf2 from "pbkdf2";
-import CryptoJS from "crypto-js";
+// import CryptoJS from "crypto-js";
 import { authUser } from "../service/userService";
 const PageContainer = styled.div`
   display: flex;

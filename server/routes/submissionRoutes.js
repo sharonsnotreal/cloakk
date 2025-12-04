@@ -14,7 +14,7 @@ const { scanAndUpload } = require("../middleware/scanMiddleWare");
 // Public route for creating submissions with time restriction and file upload
 router.post(
   "/",
-  timeRestriction,
+  // timeRestriction,
   // upload.single("file"),
   upload.array("files", 5),
   // fileCheck,

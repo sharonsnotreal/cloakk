@@ -5,7 +5,7 @@ import axios from 'axios';
 import { motion } from 'framer-motion';
 import { postUser, updateUser } from '../service/userService';
 import pbkdf2 from "pbkdf2";
-import crypto from "crypto";
+// import crypto from "crypto";
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
