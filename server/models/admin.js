@@ -8,36 +8,31 @@ const userSchema = mongoose.Schema({
     type: String,
     require: true,
     minLength: 2,
-    maxLength: 12
-  },
-  bio: {
-    type: String,
-    maxLength: 25,
-    default: "A new CipherChat user..."
+    maxLength: 12,
   },
   auth: {
     type: String,
-    require: true
+    require: true,
   },
   salt: {
-    type: String
+    type: String,
   },
   privateKeyCipher: {
-    type: String
+    type: String,
   },
   publicKey: {
-    type: String
+    type: String,
   },
   pbkHash: {
-    type: String
+    type: String,
   },
   status: {
     type: String,
-    default: ""
-  }
+    default: "",
+  },
 });
 
-const User = mongoose.model("User", userSchema);
+const User = mongoose.model("Admin", userSchema);
 
 // const generateToken = auth => {
 //   return jwt.sign({ auth }, config.get("jwtKey"));
