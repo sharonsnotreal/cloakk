@@ -2,6 +2,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import {
+  arrayBufferToWordArray,
+  wordArrayToArrayBuffer, // implement or import from decrypt.js
+  base64ToWordArray,      // if used
+  decryptText,
+  decryptBase64FileToBlob,
+  decryptSubmissionGetPassphrase,
+  
+} from '../lib/decrypt';
 import axios from 'axios';
 import {
   FiInbox,
@@ -20,17 +29,10 @@ import {
   FiEye,
 } from 'react-icons/fi';
 
-import {
-  arrayBufferToWordArray,
-  wordArrayToArrayBuffer,
-  base64ToWordArray,
-  decryptText,
-  decryptBase64FileToBlob,
-} from '../lib/decrypt';
+
 
 import CryptoJS from 'crypto-js';
 
-import crypto from 'crypto';
 
 // ---------------- STYLED COMPONENTS ----------------
 const DashboardLayout = styled.div`
@@ -373,14 +375,7 @@ const SortSelect = styled.select`
   }
 `;
 
-const getECDH = () => {
-  try {
-    return crypto.createECDH('secp521r1');
-  } catch (e) {
-    console.warn('crypto.createECDH not available in this environment. Make sure Node polyfills are present or adapt to WebCrypto.');
-    return null;
-  }
-};
+
 
 // ---------------- MAIN COMPONENT ----------------
 const AdminDashboard = () => {
@@ -397,7 +392,7 @@ const AdminDashboard = () => {
   const [filters, setFilters] = useState({ viewed: 'all', flagged: 'all' });
 
   const navigate = useNavigate();
-  const userECDH = getECDH();
+
 
   // get token helper
   const getToken = () => {
@@ -452,91 +447,63 @@ const AdminDashboard = () => {
 
   // decrypt the activeSubmission and attach decrypted fields for UI
   const decryptActiveSubmission = async (submission = activeSubmission) => {
-    if (!submission) return;
+  if (!submission) return;
 
-    // create shallow copy so we don't mutate original refs
-    const sub = { ...submission };
+  const sub = { ...submission };
 
+  try {
+    if (!sub.privateKeyCipher || !sub.passphrase) {
+      setActiveSubmission(sub);
+      return;
+    }
+
+    // derive shared secret (hex) from encrypted private key and submission public key
+    let sharedHex;
     try {
-      
-      if (!sub.privateKeyCipher || !sub.passphrase) {
-        // nothing to decrypt; leave as-is
-        setActiveSubmission(sub);
-        return;
-      }
+      sharedHex = await decryptSubmissionGetPassphrase(sub.privateKeyCipher, sub.passphrase, sub.publicKey);
+    } catch (e) {
+      console.warn('failed to derive shared secret', e);
+      setActiveSubmission(sub);
+      return;
+    }
 
-      // Decrypt privateKeyCipher using CryptoJS AES (ensure format matches server)
-      const privateKeyStr = CryptoJS.AES.decrypt(sub.privateKeyCipher, sub.passphrase).toString(CryptoJS.enc.Utf8);
+    // use sharedHex as passphrase for CryptoJS-based decrypt helpers
+    const passphrase = sharedHex;
 
-      let pvkParse;
-      try {
-        pvkParse = JSON.parse(privateKeyStr);
-      } catch (e) {
-        // If privateKeyStr isn't JSON, try treating it as raw base64
-        pvkParse = { data: privateKeyStr };
-      }
-
-      // convert stored data into Buffer (you may need to adapt depending on your storage format)
-      const pvkBuffer = Buffer.isBuffer(pvkParse.data)
-        ? pvkParse.data
-        : Buffer.from(pvkParse.data || '', 'base64');
-
-      const ecdh = getECDH();
-      if (!ecdh) {
-        console.warn('ECDH not available — cannot compute shared secret to decrypt message.');
-        setActiveSubmission(sub);
-        return;
-      }
-
-      ecdh.setPrivateKey(pvkBuffer);
-      const msgPbkStr = sub.publicKey;
-      const msgPbkParsed = (() => {
-        try {
-          return JSON.parse(msgPbkStr);
-        } catch (e) {
-          return msgPbkStr;
-        }
-      })();
-
-      const msgPbkBuffer = Buffer.isBuffer(msgPbkParsed) ? msgPbkParsed : Buffer.from(msgPbkParsed || '', 'base64');
-
-      const passphrase = ecdh.computeSecret(msgPbkBuffer).toString('hex');
-
-      // decrypt textMessage using your decryptText helper (which expects ciphertext + passphrase)
-      try {
-        sub.plainTextMessage = decryptText(sub.textMessage, passphrase);
-      } catch (e) {
-        console.warn('decrypt text failed', e);
-        sub.plainTextMessage = null;
-      }
-
+    // decrypt text message
+    try {
+      sub.plainTextMessage = decryptText(sub.textMessage, passphrase);
+    } catch (e) {
+      console.warn('decrypt text failed', e);
+      sub.plainTextMessage = null;
+    }
       // decrypt files if present
       if (Array.isArray(sub.files) && sub.files.length) {
-        const decryptedFiles = await Promise.all(
-          sub.files.map(async (f) => {
-            // Case A: server returned base64 ciphertext in f.data
-            if (f.data && typeof f.data === 'string') {
-              try {
-                const blob = decryptBase64FileToBlob(f.data, passphrase, f.mimetype);
-                const url = URL.createObjectURL(blob);
-                return { ...f, blob, url, decrypted: true };
-              } catch (e) {
-                return { ...f, decrypted: false, error: 'decrypt_failed' };
-              }
+      const decryptedFiles = await Promise.all(
+        sub.files.map(async (f) => {
+          // Case A: base64 ciphertext string in f.data
+          if (f.data && typeof f.data === 'string') {
+            try {
+              const blob =  decryptBase64FileToBlob(f.data, passphrase, f.mimetype);
+              const url = URL.createObjectURL(blob);
+              return { ...f, blob, url, decrypted: true };
+            } catch (e) {
+              return { ...f, decrypted: false, error: 'decrypt_failed' };
             }
+          }
 
-            // Case B: server returned a URL to ciphertext (f.url or f.path)
-            if (f.url || f.path) {
-              const fileUrl = f.url || f.path;
-              try {
-                const res = await fetch(fileUrl);
-                const arr = await res.arrayBuffer();
-                const cipherWA = arrayBufferToWordArray(arr);
-                const plainWA = CryptoJS.AES.decrypt({ ciphertext: cipherWA }, passphrase);
-                const ab = wordArrayToArrayBuffer(plainWA);
-                const blob = new Blob([ab], { type: f.mimetype || 'application/octet-stream' });
-                const url = URL.createObjectURL(blob);
-                return { ...f, blob, url, decrypted: true };
+          // Case B: URL to ciphertext in f.url or f.path
+          if (f.url || f.path) {
+            const fileUrl = f.url || f.path;
+            try {
+              const res = await fetch(fileUrl); 
+              const arr = await res.arrayBuffer();
+              // convert fetched ArrayBuffer -> CryptoJS WordArray, decrypt, then to Blob
+              const cipherWA =  arrayBufferToWordArray(arr);
+              const plainWA = CryptoJS.AES.decrypt({ ciphertext: cipherWA }, passphrase);
+              const ab = await wordArrayToArrayBuffer(plainWA);
+              const blob = new Blob([ab], { type: f.mimetype || 'application/octet-stream' });
+              const url = URL.createObjectURL(blob);
               } catch (e) {
                 return { ...f, decrypted: false, error: 'fetch_or_decrypt_failed' };
               }

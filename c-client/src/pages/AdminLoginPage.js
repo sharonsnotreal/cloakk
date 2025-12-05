@@ -3,9 +3,6 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import { postUser, updateUser } from '../service/userService';
-import pbkdf2 from "pbkdf2";
-import crypto from "crypto";
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
@@ -129,8 +126,7 @@ const ErrorMessage = styled.p`
 `;
 
 
-
-const AdminRegisterPage = () => {
+const AdminLoginPage = () => {
     // Same logic as before
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -144,44 +140,34 @@ const AdminRegisterPage = () => {
         setError('');
 
         try {
-      //     const auth = pbkdf2
-      //   .pbkdf2Sync(password, username, 25000, 64, "sha512")
-      //   .toString("hex");
-
-      // const { data: user } = await postUser({ username, auth });
-
-      // const { _id, auth: _auth, salt } = user;
-
-      // const ecdh = crypto.createECDH("secp521r1");
-      // const passphrase = pbkdf2
-      //   .pbkdf2Sync(_auth + password, salt, 25000, 64, "sha512")
-      //   .toString("hex");
-
-      // const publicKey = JSON.stringify(ecdh.generateKeys());
-      // const pbkHash = CryptoJS.SHA256(publicKey).toString();
-      // const privateKey = ecdh.getPrivateKey();
-      // const privateKeyCipher = CryptoJS.AES.encrypt(
-      //   JSON.stringify(privateKey),
-      //   passphrase
-      // ).toString();
-      //   const { data: _user } = await updateUser(_id, {
-      //       username,
-      //       privateKeyCipher,
-      //       publicKey,
-      //       pbkHash
-      //     });
-
-      // console.log(_user);
-      // localStorage.setItem('adminInfo', JSON.stringify(_user));
-      // alert("Account has been created.");
-      // history.push("/login");
-
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-            const response = await axios.post(`${apiUrl}/api/admin/create`, { username, password });
+            const response = await axios.post(`${apiUrl}/api/admin/login`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
+            // const auth = pbkdf2
+            // .pbkdf2Sync(password, username, 25000, 64, "sha512")
+            // .toString("hex");
+
+            // const { userToken, user } = await authUser({ username, auth });
+            // const { auth: _auth, privateKeyCipher, salt, publicKey } = user;
+            // const passphrase = pbkdf2
+            //   .pbkdf2Sync(_auth + password, salt, 25000, 64, "sha512")
+            //   .toString("hex");
+
+            // const privateKeyStr = CryptoJS.AES.decrypt(
+            //   privateKeyCipher,
+            //   passphrase
+            // ).toString(CryptoJS.enc.Utf8);
+
+            // localStorage.setItem("userToken", userToken);
+            // localStorage.setItem("pvk", privateKeyStr);
+            // localStorage.setItem("pbk", publicKey);
+            // localStorage.setItem('adminInfo', JSON.stringify(userToken));
+            // alert("Account authenticated!");
             navigate('/admin/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed.');
+            alert("Authentication Failed: Wrong Credentials");
+            localStorage.clear();
         } finally {
             setLoading(false);
         }
@@ -195,11 +181,11 @@ const AdminRegisterPage = () => {
                     <Input type="text" value={username} onChange={e => setUsername(e.target.value)} />
                     <label>Password</label>
                     <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-                    <LoginButton type="submit" disabled={loading}>Signup Admin</LoginButton>
+                    <LoginButton type="submit" disabled={loading}>Login Admin</LoginButton>
                     {error && <ErrorMessage>{error}</ErrorMessage>}
                 </FormPanel>
                 <LogoPanel>
-                    {/* <AppName>Cloakk</AppName> */}
+                    {/* <AppName></AppName> */}
                     <LogoImage src="/cloakk.png" />
                 </LogoPanel>
             </LoginContainer>
@@ -207,4 +193,4 @@ const AdminRegisterPage = () => {
     );
 };
 
-export default AdminRegisterPage;
+export default AdminLoginPage;
