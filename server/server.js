@@ -2,6 +2,7 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const connectDB = require("./db/config");
+// const rateLimit = require("express-rate-limit");
 const path = require("path");
 // const mongoSanitize = require("express-mongo-sanitize");
 const mongoSanitize = require("@exortek/express-mongo-sanitize");
@@ -9,7 +10,12 @@ dotenv.config();
 connectDB();
 
 const app = express();
-
+// // Basic rate limiting
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 200,
+// });
+// app.use(limiter);
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));

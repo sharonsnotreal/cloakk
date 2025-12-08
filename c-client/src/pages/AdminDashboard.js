@@ -1,17 +1,9 @@
 // src/pages/AdminDashboard.js
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import {
-  arrayBufferToWordArray,
-  wordArrayToArrayBuffer, // implement or import from decrypt.js
-  base64ToWordArray,      // if used
-  decryptText,
-  decryptBase64FileToBlob,
-  decryptSubmissionGetPassphrase,
-  
-} from '../lib/decrypt';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import styled from "styled-components";
+
+import axios from "axios";
 import {
   FiInbox,
   FiTrash2,
@@ -27,14 +19,13 @@ import {
   FiEyeOff,
   FiUser,
   FiEye,
-} from 'react-icons/fi';
+  FiRefreshCw,
+} from "react-icons/fi";
 
-
-
-import CryptoJS from 'crypto-js';
-
+const openpgp = require("openpgp");
 
 // ---------------- STYLED COMPONENTS ----------------
+
 const DashboardLayout = styled.div`
   display: flex;
   height: 100vh;
@@ -107,7 +98,8 @@ const NavItem = styled.div`
   cursor: pointer;
   font-weight: 500;
   color: ${({ theme, active }) => (active ? theme.text : theme.textSecondary)};
-  background-color: ${({ theme, active }) => (active ? theme.cardBg : 'transparent')};
+  background-color: ${({ theme, active }) =>
+    active ? theme.cardBg : "transparent"};
 
   &:hover {
     background-color: ${({ theme }) => theme.cardBg};
@@ -236,9 +228,11 @@ const MessageListItem = styled.div`
   padding: 1rem 1.5rem;
   border-bottom: 1px solid ${({ theme }) => theme.border};
   cursor: pointer;
-  background-color: ${({ theme, active }) => (active ? theme.cardBg : 'transparent')};
+  background-color: ${({ theme, active }) =>
+    active ? theme.cardBg : "transparent"};
 
-  h4, p {
+  h4,
+  p {
     margin: 0;
     white-space: nowrap;
     overflow: hidden;
@@ -257,7 +251,8 @@ const MessageListItem = styled.div`
   }
 
   @media (max-width: 900px) {
-    h4, p {
+    h4,
+    p {
       white-space: normal;
       overflow: visible;
       text-overflow: clip;
@@ -374,8 +369,15 @@ const SortSelect = styled.select`
     outline: none;
   }
 `;
-
-
+/* footer pagination area */
+const FooterBar = styled.div`
+  padding: 0.75rem 1rem;
+  border-top: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+`;
 
 // ---------------- MAIN COMPONENT ----------------
 const AdminDashboard = () => {
@@ -384,62 +386,85 @@ const AdminDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [binItems, setBinItems] = useState([]);
   const [activeSubmission, setActiveSubmission] = useState(null);
-  const [view, setView] = useState('inbox');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [view, setView] = useState("inbox");
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sortBy, setSortBy] = useState('createdAt_desc');
-  const [filters, setFilters] = useState({ viewed: 'all', flagged: 'all' });
-
+  const [error, setError] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt_desc");
+  const [filters, setFilters] = useState({ viewed: "all", flagged: "all" });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const navigate = useNavigate();
-
-
-  // get token helper
+  const location = useLocation();
   const getToken = () => {
-    const adminInfo = localStorage.getItem('adminInfo');
+    const adminInfo = localStorage.getItem("adminInfo");
     return adminInfo ? JSON.parse(adminInfo).token : null;
   };
 
-  // fetch data: inbox or bin
   const fetchData = useCallback(async () => {
     setLoading(true);
-    setError('');
+    setError("");
     setActiveSubmission(null);
     const token = getToken();
     if (!token) {
-      navigate('/admin/login');
+      navigate("/admin/login");
       return;
     }
 
     try {
-      if (view === 'bin') {
-        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/bin`;
-        const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
-        setBinItems(data || []);
+      if (view === "bin") {
+        const url = `${
+          process.env.REACT_APP_API_URL || "http://localhost:5000"
+        }/api/submissions/bin`;
+        const { data } = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        // setBinItems(data || []);
         if ((data || []).length > 0) setActiveSubmission((data || [])[0]);
+
+        if (Array.isArray(data)) {
+          setBinItems(data);
+          setTotalCount(data.length);
+          setTotalPages(1);
+        } else {
+          setBinItems(data || []);
+          setTotalCount(data.length);
+          // setTotalPages(
+          //   Math.max(
+          //     1,
+          //     Math.ceil((data.total || (data.items || []).length) / limit)
+          //   )
+          // );
+        }
       } else {
         const params = new URLSearchParams();
-        if (searchTerm) params.append('search', searchTerm);
-        params.append('sort', sortBy);
-        const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions?${params.toString()}`;
-        const { data } = await axios.get(url, { headers: { Authorization: `Bearer ${token}` } });
+        if (searchTerm) params.append("search", searchTerm);
+        params.append("sort", sortBy);
+        const url = `${
+          process.env.REACT_APP_API_URL || "http://localhost:5000"
+        }/api/submissions?${params.toString()}`;
+        const { data } = await axios.get(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
         setSubmissions(data || []);
         if ((data || []).length > 0) setActiveSubmission((data || [])[0]);
       }
     } catch (err) {
-      console.error('fetchData error', err);
-      setError('Failed to fetch data. Please try again.');
+      console.error("fetchData error", err);
+      setError("Failed to fetch data. Please try again.");
     } finally {
       setLoading(false);
     }
-  }, [navigate, view, searchTerm, sortBy]);
+  }, [navigate, view, searchTerm, sortBy, limit]);
 
   useEffect(() => {
-    const adminInfo = localStorage.getItem('adminInfo');
+    const adminInfo = localStorage.getItem("adminInfo");
     if (adminInfo) {
       setAdmin(JSON.parse(adminInfo));
     } else {
-      navigate('/admin/login');
+      navigate("/admin/login");
     }
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -447,122 +472,98 @@ const AdminDashboard = () => {
 
   // decrypt the activeSubmission and attach decrypted fields for UI
   const decryptActiveSubmission = async (submission = activeSubmission) => {
-  if (!submission) return;
+    if (!submission) return;
+    const sub = { ...submission };
 
-  const sub = { ...submission };
-
-  try {
-    if (!sub.privateKeyCipher || !sub.passphrase) {
-      setActiveSubmission(sub);
-      return;
-    }
-
-    // derive shared secret (hex) from encrypted private key and submission public key
-    let sharedHex;
     try {
-      sharedHex = await decryptSubmissionGetPassphrase(sub.privateKeyCipher, sub.passphrase, sub.publicKey);
-    } catch (e) {
-      console.warn('failed to derive shared secret', e);
-      setActiveSubmission(sub);
-      return;
-    }
-
-    // use sharedHex as passphrase for CryptoJS-based decrypt helpers
-    const passphrase = sharedHex;
-
-    // decrypt text message
-    try {
-      sub.plainTextMessage = decryptText(sub.textMessage, passphrase);
-    } catch (e) {
-      console.warn('decrypt text failed', e);
-      sub.plainTextMessage = null;
-    }
-      // decrypt files if present
-      if (Array.isArray(sub.files) && sub.files.length) {
-      const decryptedFiles = await Promise.all(
-        sub.files.map(async (f) => {
-          // Case A: base64 ciphertext string in f.data
-          if (f.data && typeof f.data === 'string') {
-            try {
-              const blob =  decryptBase64FileToBlob(f.data, passphrase, f.mimetype);
-              const url = URL.createObjectURL(blob);
-              return { ...f, blob, url, decrypted: true };
-            } catch (e) {
-              return { ...f, decrypted: false, error: 'decrypt_failed' };
-            }
-          }
-
-          // Case B: URL to ciphertext in f.url or f.path
-          if (f.url || f.path) {
-            const fileUrl = f.url || f.path;
-            try {
-              const res = await fetch(fileUrl); 
-              const arr = await res.arrayBuffer();
-              // convert fetched ArrayBuffer -> CryptoJS WordArray, decrypt, then to Blob
-              const cipherWA =  arrayBufferToWordArray(arr);
-              const plainWA = CryptoJS.AES.decrypt({ ciphertext: cipherWA }, passphrase);
-              const ab = await wordArrayToArrayBuffer(plainWA);
-              const blob = new Blob([ab], { type: f.mimetype || 'application/octet-stream' });
-              const url = URL.createObjectURL(blob);
-              } catch (e) {
-                return { ...f, decrypted: false, error: 'fetch_or_decrypt_failed' };
-              }
-            }
-
-            return { ...f, decrypted: false, error: 'no_cipher_provided' };
-          })
-        );
-
-        sub.decryptedFiles = decryptedFiles;
+      if (!sub.privateKey) {
+        setActiveSubmission(sub);
+        return;
       }
 
-      // attach computed passphrase for debugging if needed (remove in prod)
-      sub._debug_passphrase = passphrase;
+      try {
+        // Determine armored message field
+        const armoredMessage = sub.textMessage;
+        if (!armoredMessage) {
+          sub.plainTextMessage = null;
+          setActiveSubmission(sub);
+          return;
+        }
+
+        const privKeyObj = await openpgp.readPrivateKey({
+          armoredKey: sub.privateKey,
+        });
+        const pubKeyObj = sub.publicKey
+          ? await openpgp.readKey({ armoredKey: sub.publicKey })
+          : null;
+
+        const unlockedPriv = await openpgp.decryptKey({
+          privateKey: privKeyObj,
+          passphrase: "super long and hard to guess secret",
+        });
+
+        const message = await openpgp.readMessage({ armoredMessage });
+        const { data: decrypted } = await openpgp.decrypt({
+          message,
+          verificationKeys: pubKeyObj || undefined,
+          decryptionKeys: unlockedPriv,
+        });
+
+        sub.plainTextMessage = decrypted;
+      } catch (e) {
+        console.warn("decrypt text failed", e);
+        sub.plainTextMessage = null;
+      }
 
       setActiveSubmission(sub);
     } catch (err) {
-      console.error('decryptActiveSubmission error', err);
-      setActiveSubmission(submission); // fall back
+      console.error("decryptActiveSubmission error", err);
+      setActiveSubmission(submission);
     }
   };
 
-  // Re-run decryption whenever activeSubmission changes (or when it is set)
-  useEffect(() => {
-    if (activeSubmission) {
-      decryptActiveSubmission(activeSubmission);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSubmission]);
-
-  // update (view/unview/flag) handler — re-fetch after update to ensure lists & filters are correct
   const handleUpdate = async (id, updateData) => {
     try {
       const token = getToken();
-      const url = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`;
-      await axios.put(url, updateData, { headers: { Authorization: `Bearer ${token}` } });
+      const url = `${
+        process.env.REACT_APP_API_URL || "http://localhost:5000"
+      }/api/submissions/${id}`;
+      await axios.put(url, updateData, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Optimistic local update
-      setSubmissions((prev) => prev.map((s) => (s._id === id ? { ...s, ...updateData } : s)));
-      setBinItems((prev) => prev.map((s) => (s._id === id ? { ...s, ...updateData } : s)));
-      setActiveSubmission((prev) => (prev && prev._id === id ? { ...prev, ...updateData } : prev));
+      setSubmissions((prev) =>
+        prev.map((s) => (s._id === id ? { ...s, ...updateData } : s))
+      );
+      setBinItems((prev) =>
+        prev.map((s) => (s._id === id ? { ...s, ...updateData } : s))
+      );
+      setActiveSubmission((prev) =>
+        prev && prev._id === id ? { ...prev, ...updateData } : prev
+      );
 
-      // Re-fetch to ensure filters and server state are in sync
       await fetchData();
     } catch (err) {
-      console.error('handleUpdate error', err);
-      alert('Failed to update submission.');
+      console.error("handleUpdate error", err);
+      alert("Failed to update submission.");
     }
   };
 
   // delete (move to bin)
   const handleDelete = async (id) => {
-    if (!window.confirm('Are you sure you want to move this to the bin?')) return;
+    if (!window.confirm("Are you sure you want to move this to the bin?"))
+      return;
 
     try {
       const token = getToken();
-      await axios.delete(`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/submissions/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await axios.delete(
+        `${
+          process.env.REACT_APP_API_URL || "http://localhost:5000"
+        }/api/submissions/${id}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
 
       // Remove locally
       setSubmissions((prev) => prev.filter((s) => s._id !== id));
@@ -578,30 +579,29 @@ const AdminDashboard = () => {
         return prev;
       });
 
-      // re-fetch to keep state consistent
       await fetchData();
     } catch (err) {
-      console.error('handleDelete error', err);
-      alert('Failed to delete submission.');
+      console.error("handleDelete error", err);
+      alert("Failed to delete submission.");
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminInfo');
-    navigate('/admin/login');
+    localStorage.removeItem("adminInfo");
+    navigate("/admin/login");
   };
 
   // Filtering logic applied to lists
-  let currentList = view === 'inbox' ? submissions : binItems;
+  let currentList = view === "inbox" ? submissions : binItems;
 
-  if (filters.viewed === 'false') {
+  if (filters.viewed === "false") {
     currentList = currentList.filter((s) => !s.isViewed);
   }
 
-  if (filters.flagged === 'urgent') {
-    currentList = currentList.filter((s) => s.isFlagged === 'urgent');
-  } else if (filters.flagged === 'important') {
-    currentList = currentList.filter((s) => s.isFlagged === 'important');
+  if (filters.flagged === "urgent") {
+    currentList = currentList.filter((s) => s.isFlagged === "urgent");
+  } else if (filters.flagged === "important") {
+    currentList = currentList.filter((s) => s.isFlagged === "important");
   }
 
   // If user not authenticated yet, don't render dashboard
@@ -612,17 +612,27 @@ const AdminDashboard = () => {
     <DashboardLayout>
       <Sidebar>
         <NavGroup>
-          <NavItem active={view === 'inbox'} onClick={() => setView('inbox')}>
+          <NavItem active={view === "inbox"} onClick={() => setView("inbox")}>
             <FiInbox /> <span style={{ marginLeft: 6 }}>Inbox</span>
+            <FiRefreshCw />
+            <span
+              onClick={() => navigate(location.pathname, { replace: true })}
+            ></span>
           </NavItem>
         </NavGroup>
 
         <NavGroup>
           <NavGroupTitle>Status</NavGroupTitle>
-          <NavItem active={filters.viewed === 'all'} onClick={() => setFilters({ ...filters, viewed: 'all' })}>
+          <NavItem
+            active={filters.viewed === "all"}
+            onClick={() => setFilters({ ...filters, viewed: "all" })}
+          >
             <FiCheckCircle /> <span style={{ marginLeft: 6 }}>All</span>
           </NavItem>
-          <NavItem active={filters.viewed === 'false'} onClick={() => setFilters({ ...filters, viewed: 'false' })}>
+          <NavItem
+            active={filters.viewed === "false"}
+            onClick={() => setFilters({ ...filters, viewed: "false" })}
+          >
             <FiEyeOff /> <span style={{ marginLeft: 6 }}>Unviewed</span>
           </NavItem>
         </NavGroup>
@@ -630,21 +640,33 @@ const AdminDashboard = () => {
         <NavGroup>
           <NavGroupTitle>Flags</NavGroupTitle>
           <NavItem
-            active={filters.flagged === 'urgent'}
-            onClick={() => setFilters({ ...filters, flagged: filters.flagged === 'urgent' ? 'all' : 'urgent' })}
+            active={filters.flagged === "urgent"}
+            onClick={() =>
+              setFilters({
+                ...filters,
+                flagged: filters.flagged === "urgent" ? "all" : "urgent",
+              })
+            }
           >
-            <FiAlertCircle color="#ef4444" /> <span style={{ marginLeft: 6 }}>Urgent</span>
+            <FiAlertCircle color="#ef4444" />{" "}
+            <span style={{ marginLeft: 6 }}>Urgent</span>
           </NavItem>
           <NavItem
-            active={filters.flagged === 'important'}
-            onClick={() => setFilters({ ...filters, flagged: filters.flagged === 'important' ? 'all' : 'important' })}
+            active={filters.flagged === "important"}
+            onClick={() =>
+              setFilters({
+                ...filters,
+                flagged: filters.flagged === "important" ? "all" : "important",
+              })
+            }
           >
-            <FiAlertCircle color="#f59e0b" /> <span style={{ marginLeft: 6 }}>Important</span>
+            <FiAlertCircle color="#f59e0b" />{" "}
+            <span style={{ marginLeft: 6 }}>Important</span>
           </NavItem>
         </NavGroup>
 
         <NavGroup>
-          <NavItem active={view === 'bin'} onClick={() => setView('bin')}>
+          <NavItem active={view === "bin"} onClick={() => setView("bin")}>
             <FiTrash2 /> <span style={{ marginLeft: 6 }}>Trash</span>
           </NavItem>
           <NavItem>
@@ -668,12 +690,19 @@ const AdminDashboard = () => {
       <MessageListPanel>
         <SearchBarContainer>
           <SearchIcon />
-          <SearchInput placeholder="Search..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <SearchInput
+            placeholder="Search..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
         </SearchBarContainer>
 
-        {view === 'inbox' && (
+        {view === "inbox" && (
           <ListHeader>
-            <SortSelect value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <SortSelect
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
               <option value="createdAt_desc">Sort by Newest</option>
               <option value="createdAt_asc">Sort by Oldest</option>
             </SortSelect>
@@ -681,8 +710,8 @@ const AdminDashboard = () => {
         )}
 
         <MessageList>
-          {loading && <p style={{ padding: '1rem' }}>Loading...</p>}
-          {error && <p style={{ padding: '1rem', color: 'red' }}>{error}</p>}
+          {loading && <p style={{ padding: "1rem" }}>Loading...</p>}
+          {error && <p style={{ padding: "1rem", color: "red" }}>{error}</p>}
           {!loading &&
             currentList.map((sub) => (
               <MessageListItem
@@ -690,16 +719,25 @@ const AdminDashboard = () => {
                 active={activeSubmission?._id === sub._id}
                 onClick={() => {
                   // set active and let the effect handle decryption
-                  setActiveSubmission(sub);
+                  // setActiveSubmission(sub);
+                  decryptActiveSubmission(sub);
                 }}
               >
                 <h4>#{sub.receiptCode}</h4>
-                <p>{sub.plainTextMessage ? sub.plainTextMessage.substring(0, 120) : sub.textMessage || 'Encrypted message'}</p>
+                <p>
+                  {sub.plainTextMessage
+                    ? sub.plainTextMessage.substring(0, 120)
+                    : sub.textMessage || "Encrypted message"}
+                </p>
               </MessageListItem>
             ))}
         </MessageList>
       </MessageListPanel>
-
+      <FooterBar>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ color: "#6b7280" }}>{totalCount} total</div>
+        </div>
+      </FooterBar>
       <MessageDetailPanel>
         {activeSubmission ? (
           <>
@@ -715,23 +753,51 @@ const AdminDashboard = () => {
 
                 {/* View/Unview Toggle */}
                 {activeSubmission.isViewed ? (
-                  <FiEyeOff title="Mark as Unviewed" onClick={() => handleUpdate(activeSubmission._id, { isViewed: false })} />
+                  <FiEyeOff
+                    title="Mark as Unviewed"
+                    onClick={() =>
+                      handleUpdate(activeSubmission._id, { isViewed: false })
+                    }
+                  />
                 ) : (
-                  <FiEye title="Mark as Viewed" onClick={() => handleUpdate(activeSubmission._id, { isViewed: true })} />
+                  <FiEye
+                    title="Mark as Viewed"
+                    onClick={() =>
+                      handleUpdate(activeSubmission._id, { isViewed: true })
+                    }
+                  />
                 )}
 
                 {/* Flag as Important */}
                 <FiAlertCircle
                   title="Toggle Important"
-                  className={`important-flag ${activeSubmission.isFlagged === 'important' ? 'active' : ''}`}
-                  onClick={() => handleUpdate(activeSubmission._1d || activeSubmission._id, { isFlagged: activeSubmission.isFlagged === 'important' ? 'none' : 'important' })}
+                  className={`important-flag ${
+                    activeSubmission.isFlagged === "important" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    handleUpdate(activeSubmission._1d || activeSubmission._id, {
+                      isFlagged:
+                        activeSubmission.isFlagged === "important"
+                          ? "none"
+                          : "important",
+                    })
+                  }
                 />
 
                 {/* Flag as Urgent */}
                 <FiAlertCircle
                   title="Toggle Urgent"
-                  className={`urgent-flag ${activeSubmission.isFlagged === 'urgent' ? 'active' : ''}`}
-                  onClick={() => handleUpdate(activeSubmission._id, { isFlagged: activeSubmission.isFlagged === 'urgent' ? 'none' : 'urgent' })}
+                  className={`urgent-flag ${
+                    activeSubmission.isFlagged === "urgent" ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    handleUpdate(activeSubmission._id, {
+                      isFlagged:
+                        activeSubmission.isFlagged === "urgent"
+                          ? "none"
+                          : "urgent",
+                    })
+                  }
                 />
 
                 <FiTrash2 onClick={() => handleDelete(activeSubmission._id)} />
@@ -739,41 +805,54 @@ const AdminDashboard = () => {
             </DetailHeader>
 
             <MessageBody>
-              {activeSubmission.plainTextMessage ? activeSubmission.plainTextMessage : activeSubmission.textMessage || 'Encrypted message'}
+              {activeSubmission.plainTextMessage
+                ? activeSubmission.plainTextMessage
+                : activeSubmission.textMessage || "Encrypted message"}
 
               {/* Render decrypted files if available */}
-              {Array.isArray(activeSubmission.decryptedFiles) &&
-                activeSubmission.decryptedFiles.map((f, idx) => {
-                  const name = f.originalName || f.name || `attachment-${idx + 1}`;
-                  const url = f.url || (f.blob ? URL.createObjectURL(f.blob) : null);
+              {Array.isArray(activeSubmission.files) &&
+                activeSubmission.files.map((f, idx) => {
+                  const name =
+                    f.originalName || f.name || `attachment-${idx + 1}`;
+                  const url =
+                    f.url || (f.blob ? URL.createObjectURL(f.blob) : null);
                   return (
                     <div key={idx}>
                       {url ? (
-                        <Attachment href={url} target="_blank" rel="noopener noreferrer">
+                        <Attachment
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           <FiDownload />
                           {name}
                         </Attachment>
                       ) : (
-                        <div style={{ marginTop: 12, color: '#888' }}>{name} (not viewable)</div>
+                        <div style={{ marginTop: 12, color: "#888" }}>
+                          {name} (not viewable)
+                        </div>
                       )}
                     </div>
                   );
                 })}
-              {/* Fallback if server gave a single file prop */}
               {activeSubmission.file && (
                 <Attachment
-                  href={`${process.env.REACT_APP_API_URL || 'http://localhost:5000'}${activeSubmission.file.path}`}
+                  href={`${
+                    process.env.REACT_APP_API_URL || "http://localhost:5000"
+                  }${activeSubmission.file.path}`}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
                   <FiDownload />
-                  {activeSubmission.file.originalName || 'Download Attachment'}
+                  {activeSubmission.file.originalName || "Download Attachment"}
                 </Attachment>
               )}
             </MessageBody>
           </>
         ) : (
-          <Placeholder>{loading ? 'Loading...' : 'Select a message to read.'}</Placeholder>
+          <Placeholder>
+            {loading ? "Loading..." : "Select a message to read."}
+          </Placeholder>
         )}
       </MessageDetailPanel>
     </DashboardLayout>

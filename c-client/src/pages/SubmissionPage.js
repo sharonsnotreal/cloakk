@@ -1,240 +1,18 @@
-
-// import React, { useState, useRef } from 'react';
-// import styled from 'styled-components';
-// import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
-// import { motion } from 'framer-motion';
-// import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
-// import { encryptBytesForRecipients, fileToUint8Array } from '../lib/e2e'; // adjust path if needed
-// import sodium from 'libsodium-wrappers';
-// import crypto from "crypto";
-// import { MD5 } from "crypto-js";
-// import Axios from "axios";
-// import pbkdf2 from "pbkdf2";
-// // (existing styled components omitted for brevity)
-// // ... REUSE your existing styled components from the original file ...
-
-// // For brevity I reuse the exact styled components you provided originally.
-// // Paste them here if you keep this whole file in your codebase.
-
-// const PageContainer = styled.div`/* ... same as before ... */`;
-// const MainCard = styled(motion.div)`/* ... */`;
-// const DisclaimerPanel = styled.div`/* ... */`;
-// const DisclaimerItem = styled.div`/* ... */`;
-// const FormPanel = styled.div`/* ... */`;
-// const Title = styled.h2`/* ... */`;
-// const DragDropArea = styled.label`/* ... */`;
-// const MessageInput = styled.textarea`/* ... */`;
-// const SubmitButton = styled.button`/* ... */`;
-// const ErrorMessage = styled.p`/* ... */`;
-
-// const SubmissionPage = () => {
-//   const [textMessage, setTextMessage] = useState("");
-//   const [files, setFiles] = useState([]); // array of File objects
-//   const [error, setError] = useState("");
-//   const [loading, setLoading] = useState(false);
-//   const [message, setMessage] = useState([]);
-//   const navigate = useNavigate();
-//   const passphrase =  getPassphrase();
-//   const inputRef = useRef(null);
-
-//   const ALLOWED_TYPES = [
-//     "application/pdf",
-//     "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
-//     "image/jpeg",
-//     "image/png",
-//     "video/mp4",
-//   ];
-//   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB per file
-//   const MAX_FILES = 5;
-//   const generateReceiptCode = () => {
-//   const code = uuidv4().split("-").join("").substring(0, 12).toUpperCase();
-//   return `CLOAKK-${code.slice(0, 4)}-${code.slice(4, 8)}-${code.slice(8, 12)}`;
-// };
-
-//   //   const userECDH = getECDH();
-
-//   // const source = Axios.CancelToken.source();
-
-//   //  function getECDH() {
-//   //   const pvkStr = localStorage.getItem("pvk");
-
-//   //   const pvkParse = JSON.parse(pvkStr);
-
-//   //   const pvk = Buffer.from(pvkParse.data);
-
-//   //   const ecdh = crypto.createECDH("secp521r1");
-//   //   ecdh.setPrivateKey(pvk);
-
-//   //   return ecdh;
-//   // }
-   
-
-
-
-//   // function getPassphrase() {
-//   //   const chatMatePbkStr = localStorage.getItem("chatmate_pbk");
-//   //   const chatMatePbkParsed = JSON.parse(chatMatePbkStr);
-//   //   const chatMatePbk = Buffer.from(chatMatePbkParsed.data);
-
-//   //   if (!userECDH) return console.log("ECDH is null");
-
-//   //   const passphrase = userECDH.computeSecret(chatMatePbk).toString("hex");
-//   //   return passphrase;
-//   // }
-
-//    function decryptMsg(msg) {
-//     const _message = [...message];
-//     const _msg = _message.find(m => m === msg);
-
-//     _msg.name = AES.decrypt(_msg.name, passphrase).toString(CryptoJS.enc.Utf8);
-//     _msg.timestamp = AES.decrypt(_msg.timestamp, passphrase).toString(
-//       CryptoJS.enc.Utf8
-//     );
-//     _msg.message = AES.decrypt(_msg.message, passphrase).toString(
-//       CryptoJS.enc.Utf8
-//     );
-//     _msg.decrypted = true;
-
-//     setMessage(_message);
-//   }
-//   const handleFileChange = (e) => {
-//     const selectedFiles = Array.from(e.target.files || []);
-//     addFiles(selectedFiles);
-//     e.target.value = null;
-//   };
-
-//   const addFiles = (selectedFiles) => {
-//     if (!selectedFiles.length) return;
-
-//     // Filter and validate files
-//     const validated = [];
-//     for (const f of selectedFiles) {
-//       if (files.length + validated.length >= MAX_FILES) {
-//         setError(`Maximum of ${MAX_FILES} files allowed.`);
-//         break;
-//       }
-//       if (!ALLOWED_TYPES.includes(f.type)) {
-//         setError(`File type not allowed: ${f.name}`);
-//         continue;
-//       }
-//       if (f.size > MAX_FILE_SIZE) {
-//         setError(
-//           `File too large: ${f.name} (max ${MAX_FILE_SIZE / (1024 * 1024)}MB)`
-//         );
-//         continue;
-//       }
-//       validated.push(f);
-//     }
-
-//     if (validated.length) {
-//       setFiles((prev) => [...prev, ...validated]);
-//       setError("");
-//     }
-//   };
-
-//   const removeFile = (index) => {
-//     setFiles((prev) => prev.filter((_, i) => i !== index));
-//   };
-
-//   const handleDrop = (e) => {
-//     e.preventDefault();
-//     e.stopPropagation();
-//     const dtFiles = Array.from(e.dataTransfer.files || []);
-//     addFiles(dtFiles);
-//   };
-
-//   const handleDragOver = (e) => {
-//     e.preventDefault();
-//     e.stopPropagation();
-//   };
-
-//   const openFileDialog = () => {
-//     inputRef.current?.click();
-//   };
-
-//  function arrayBufferToWordArray(ab) {
-//   const u8 = new Uint8Array(ab);
-//   const words = [];
-//   for (let i = 0; i < u8.length; i += 4) {
-//     words.push(
-//       (u8[i] << 24) |
-//       ((u8[i + 1] || 0) << 16) |
-//       ((u8[i + 2] || 0) << 8) |
-//       (u8[i + 3] || 0)
-//     );
-//   }
-//   return CryptoJS.lib.WordArray.create(words, u8.length);
-// }
-
-// function wordArrayToBase64(wordArray) {
-//   return CryptoJS.enc.Base64.stringify(wordArray);
-// }
-
-// function readFileAsArrayBuffer(file) {
-//   return new Promise((resolve, reject) => {
-//     const fr = new FileReader();
-//     fr.onerror = () => { fr.abort(); reject(new Error('File read error')); };
-//     fr.onload = () => resolve(fr.result);
-//     fr.readAsArrayBuffer(file);
-//   });
-// }
-// const handleSubmit = async (e) => {
-//   e.preventDefault();
-//   if (!textMessage) {
-//     setError("A text message is required.");
-//     return;
-//   }
-//   setLoading(true);
-//   setError("");
-   
-
-//   try {
-//     // encrypt text field
-//     const salt = crypto.randomBytes(16); // Buffer
-//     const saltHex = salt.toString('hex');;
-//     const ecdh = crypto.createECDH("secp521r1");
-//     const passphrase = pbkdf2
-//       .pbkdf2Sync("cloakencrypt123456789", saltHex, 25000, 64, "sha512")
-//       .toString("hex");
-
-//     const publicKey = JSON.stringify(ecdh.generateKeys());
-//     const pbkHash = CryptoJS.SHA256(publicKey).toString();
-//     const privateKey = ecdh.getPrivateKey();
-//     const privateKeyCipher = CryptoJS.AES.encrypt(
-
-
 import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
-import { encryptBytesForRecipients, fileToUint8Array } from "../lib/e2e"; // adjust path if needed
+// import { encryptBytesForRecipients, fileToUint8Array } from "../lib/e2e"; // adjust path if needed
 
 
 
-// import { sha256 } from "js-sha256";
-// import { MD5, CryptoJs } from "crypto-js";
-import CryptoJS from "crypto-js";
-import {
-  bufferToBase64,
-  base64ToUint8Array,
-  hexFromUint8,
-  uint8FromHex,
-  pbkdf2Hex,
-  randomBytes,
-  generateECDHKeyPair,
-  exportPublicKeyToBase64,
-  exportPrivateKeyArrayBuffer,
-  importPublicKeyFromBase64,
-  arrayBufferToWordArray,
-  wordArrayToBase64,
-  readFileAsArrayBuffer,
-} from '../lib/web-crypto-utils';
-import Axios from "axios";
 
-// import pbkdf2 from "pbkdf2";
+
+// import Axios from "axios";
+
+const openpgp = require("openpgp");
 // import
 const PageContainer = styled.div`
   display: flex;
@@ -475,129 +253,74 @@ const SubmissionPage = () => {
   const openFileDialog = () => {
     inputRef.current?.click();
   };
-  // function wordArrayToUint8Array(words, sigBytes) {
-  //   const u8 = new Uint8Array(sigBytes);
-  //   let offset = 0;
 
-  //   for (let i = 0; i < words.length; i++) {
-  //     const word = words[i];
-
-  //     u8[offset++] = (word >> 24) & 0xff;
-  //     u8[offset++] = (word >> 16) & 0xff;
-  //     u8[offset++] = (word >> 8) & 0xff;
-  //     u8[offset++] = word & 0xff;
-  //   }
-
-  //   return u8;
+  // function readFileAsArrayBuffer(file) {
+  //   return new Promise((resolve, reject) => {
+  //     const fr = new FileReader();
+  //     fr.onerror = () => {
+  //       fr.abort();
+  //       reject(new Error("File read error"));
+  //     };
+  //     fr.onload = () => resolve(fr.result);
+  //     fr.readAsArrayBuffer(file);
+  //   });
   // }
+ const handleSubmit = async (e) => {
+   e.preventDefault();
+   if (!textMessage) {
+     setError("A text message is required.");
+     return;
+   }
+   setLoading(true);
+   setError("");
 
-  // function arrayBufferToWordArray(ab) {
-  //   const u8 = new Uint8Array(ab);
-  //   const words = [];
-  //   for (let i = 0; i < u8.length; i += 4) {
-  //     words.push(
-  //       (u8[i] << 24) |
-  //         ((u8[i + 1] || 0) << 16) |
-  //         ((u8[i + 2] || 0) << 8) |
-  //         (u8[i + 3] || 0)
-  //     );
-  //   }
-  //   return wordArrayToUint8Array(words, u8.length);
-  // }
-//  function arrayBufferToWordArray(ab) {
-//   const u8 = new Uint8Array(ab);
-//   const words = [];
-//   for (let i = 0; i < u8.length; i += 4) {
-//     words.push(
-//       (u8[i] << 24) |
-//       ((u8[i + 1] || 0) << 16) |
-//       ((u8[i + 2] || 0) << 8) |
-//       (u8[i + 3] || 0)
-//     );
-//   }
-//   return CryptoJS.lib.WordArray.create(words, u8.length);
-// }
-  // function wordArrayToBase64(wordArray) {
-  //   return CryptoJS.enc.Base64.stringify(wordArray);
-  // }
+   try {
+     // generate armored keys (privateKey is already armored & encrypted by passphrase)
+     const { privateKey: privateKeyArmored, publicKey: publicKeyArmored } =
+       await openpgp.generateKey({
+         type: "ecc",
+         curve: "curve25519",
+         userIDs: [{ name: "cloakk-user", email: "cloakk-user@example.com" }],
+         passphrase: "super long and hard to guess secret",
+         format: "armored",
+       });
 
-  function readFileAsArrayBuffer(file) {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onerror = () => {
-        fr.abort();
-        reject(new Error("File read error"));
-      };
-      fr.onload = () => resolve(fr.result);
-      fr.readAsArrayBuffer(file);
-    });
-  }
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!textMessage) { setError('A text message is required.'); return; }
-    setLoading(true); setError('');
+     // encrypt the message with the public key
+     const pubKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
+     const encrypted = await openpgp.encrypt({
+       message: await openpgp.createMessage({ text: textMessage }),
+       encryptionKeys: pubKey,
+     });
 
-    try {
-      // 1) salt and passphrase via PBKDF2 (Web Crypto)
-      const saltArr = randomBytes(16);
-      const saltHex = hexFromUint8(saltArr);
-      const passphrase = await pbkdf2Hex('cloakencrypt123456789', saltHex, 25000, 64, 'SHA-512');
+     // create blobs for upload (store armored strings)
+     const publicBlob = publicKeyArmored;
+     const privateBlob = privateKeyArmored;
+     // const messageBlob = encrypted
+     console.log(publicBlob, privateBlob);
+     const formData = new FormData();
+     formData.append("publicKey", publicBlob);
+     formData.append("privateKey", privateBlob); // encrypted armored private key
+     formData.append("textMessage", encrypted);
 
-      // 2) generate ECDH keypair (P-521)
-      const kp = await generateECDHKeyPair();
-      const publicKeyB64 = await exportPublicKeyToBase64(kp.publicKey);
-      const privateKeyArrBuf = await exportPrivateKeyArrayBuffer(kp.privateKey); // ArrayBuffer
-   
-      // 3) hash publicKey for pbkHash
-      const pbkHash = CryptoJS.SHA256(publicKeyB64).toString();
-      
-      // 4) encrypt private key (ArrayBuffer) using AES with passphrase (CryptoJS expects WordArray)
-      const privateKeyWA = arrayBufferToWordArray(privateKeyArrBuf);
-      
-      const privateKeyCipher = CryptoJS.AES.encrypt(privateKeyWA, passphrase).toString();
-        
-      // 5) encrypt textMessage using publicKeyB64 as passphrase (keeps your previous pattern)
-      const encText = CryptoJS.AES.encrypt(String(textMessage), publicKeyB64).toString();
-    //  const encText = "123456"
-      // 6) Prepare FormData
-      const formData = new FormData();
-      formData.append('textMessage', encText);
-      formData.append('privateKeyCipher', privateKeyCipher);
-      formData.append('publicKey', publicKeyB64);
-      formData.append('passphrase', passphrase);
-      formData.append('pbkHash', pbkHash);
-      formData.append('saltHex', saltHex);
-       console.log(encText, privateKeyCipher, publicKeyB64, passphrase, pbkHash, saltHex)
-      // 7) Encrypt files: AES encrypt file bytes with publicKeyB64 as key (retaining your existing CryptoJS approach)
-      await Promise.all(files.map(async (file, idx) => {
-        const ab = await readFileAsArrayBuffer(file);
-        const wa = arrayBufferToWordArray(ab);
-        const cipherParams = CryptoJS.AES.encrypt(wa, publicKeyB64);
-        // const cipherParams = "djfhfkdldkld"
-        const ciphertextWA = cipherParams.ciphertext;
-        const b64 = wordArrayToBase64(ciphertextWA);
-        const binary = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-        const blob = new Blob([binary], { type: 'application/octet-stream' });
-        const meta = { originalName: file.name, mimeType: file.type, size: file.size };
-        formData.append(`file_meta_${idx}`, JSON.stringify(meta));
-        formData.append('files', blob, file.name + '.enc');
-      }));
-
-      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-      // console.log(formData)
-      // const out = [];
-      // for (const [k,v] of formData.entries()) {
-      //   out.push({ key: k, value: v instanceof Blob ? `${v.type} ${v.size} bytes` : v });
-      // }
-      // console.log(out);
-      const response = await axios.post(`${apiUrl}/api/submissions`, formData);
-      navigate('/success', { state: { receipt: response.data.receiptCode } });
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Submission failed.');
-    } finally {
-      setLoading(false);
-    }
-  };
+     // POST to server to store files
+     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+     const response = await axios.post(`${apiUrl}/api/submissions`, formData, {
+       headers: { "Content-Type": "multipart/form-data" },
+     });
+     //     await axios.post('/api/submissions', {
+     //   publicKey: publicKeyArmored,
+     //   privateKey: privateKeyArmored,
+     //   textMessage: encrypted
+     // });
+     navigate("/success", { state: { receipt: response.data.receiptCode } });
+   } catch (err) {
+     setError(
+       err.response?.data?.message || err.message || "Submission failed."
+     );
+   } finally {
+     setLoading(false);
+   }
+ };
 
   return (
     <PageContainer>
