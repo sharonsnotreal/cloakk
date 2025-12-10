@@ -95,7 +95,7 @@ const AdminRegisterPage = () => {
 
         try {
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-            const response = await axios.post(`${apiUrl}/api/admin/create`, { username, password });
+            const response = await axios.post(`${apiUrl}/api/admin/register`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
             navigate('/admin/dashboard');
         } catch (err) {
