@@ -1,81 +1,3 @@
-// import React from 'react';
-// import styled from 'styled-components';
-// import { useNavigate } from 'react-router-dom';
-// import { motion } from 'framer-motion';
-
-// const PageContainer = styled.div`
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-//   min-height: 100vh;
-//   padding: 2rem;
-// `;
-
-
-
-
-
-// const LogoImage = styled.img`
-//   width: 250px;
-//   height: auto;
-// `;
-
-// const AppName = styled.h1`
-//   position: absolute;
-//   color: white;
-//   font-size: 3.5rem;
-//   font-weight: 700;
-//   margin: 0;
-// `;
-
-
-
-// const ActionButton = styled.button`
-//   background: ${({ theme }) => theme.black};
-//   color: ${({ theme }) => theme.white};
-//   border: none;
-//   border-radius: 8px;
-//   padding: 0.8rem 1.5rem;
-//   font-size: 1rem;
-//   font-weight: 500;
-//   cursor: pointer;
-//   align-self: flex-start;
-//   transition: opacity 0.2s;
-//   &:hover {
-//     opacity: 0.8;
-//   }
-// `;
-
-// const LandingPage = () => {
-//   const navigate = useNavigate();
-
-//   return (
-//     <PageContainer>
-//       <MainCard initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-//         <LeftPanel>
-//           <LogoImage src="/cloakk.png" alt="Cloakk Logo" />
-//           {/* <AppName>Cloakk</AppName> */}
-//         </LeftPanel>
-//         <RightPanel>
-//           <Description>
-//             Cloakk is a secure, anonymous submission platform designed for organizations to receive sensitive tips, reports, or files from insiders — without compromising their identity.
-//           </Description>
-//           <Description>
-//             Whether you’re reporting misconduct, raising a concern, or just speaking up, your submission remains encrypted, protected, and untraceable.
-//           </Description>
-//           <Description>
-//             <strong>Your identity is not recorded, stored, or required.</strong>
-//           </Description>
-//           <ActionButton onClick={() => navigate('/submit')}>
-//             make a submission
-//           </ActionButton>
-//         </RightPanel>
-//       </MainCard>
-//     </PageContainer>
-//   );
-// };
-
-// export default LandingPage;
 import React from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
@@ -227,7 +149,6 @@ const LandingPage = () => {
       >
         <LeftPanel>
           <LogoImage src="/cloakk.png" alt="Cloakk Logo" />
-          {/* Keep the app name visible on larger screens; it will adapt on small screens */}
           <AppName>Cloakk</AppName>
         </LeftPanel>
 

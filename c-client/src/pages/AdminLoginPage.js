@@ -143,26 +143,7 @@ const AdminLoginPage = () => {
             const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
             const response = await axios.post(`${apiUrl}/api/admin/login`, { username, password });
             localStorage.setItem('adminInfo', JSON.stringify(response.data));
-            // const auth = pbkdf2
-            // .pbkdf2Sync(password, username, 25000, 64, "sha512")
-            // .toString("hex");
-
-            // const { userToken, user } = await authUser({ username, auth });
-            // const { auth: _auth, privateKeyCipher, salt, publicKey } = user;
-            // const passphrase = pbkdf2
-            //   .pbkdf2Sync(_auth + password, salt, 25000, 64, "sha512")
-            //   .toString("hex");
-
-            // const privateKeyStr = CryptoJS.AES.decrypt(
-            //   privateKeyCipher,
-            //   passphrase
-            // ).toString(CryptoJS.enc.Utf8);
-
-            // localStorage.setItem("userToken", userToken);
-            // localStorage.setItem("pvk", privateKeyStr);
-            // localStorage.setItem("pbk", publicKey);
-            // localStorage.setItem('adminInfo', JSON.stringify(userToken));
-            // alert("Account authenticated!");
+            
             navigate('/admin/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed.');

@@ -6,12 +6,7 @@ import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
 // import { encryptBytesForRecipients, fileToUint8Array } from "../lib/e2e"; // adjust path if needed
 
-
-
-
-
 // import Axios from "axios";
-
 const openpgp = require("openpgp");
 // import
 const PageContainer = styled.div`
@@ -183,7 +178,6 @@ const SubmissionPage = () => {
   const [files, setFiles] = useState([]); // array of File objects
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState([]);
   const navigate = useNavigate();
 
   const inputRef = useRef(null);
@@ -254,17 +248,6 @@ const SubmissionPage = () => {
     inputRef.current?.click();
   };
 
-  // function readFileAsArrayBuffer(file) {
-  //   return new Promise((resolve, reject) => {
-  //     const fr = new FileReader();
-  //     fr.onerror = () => {
-  //       fr.abort();
-  //       reject(new Error("File read error"));
-  //     };
-  //     fr.onload = () => resolve(fr.result);
-  //     fr.readAsArrayBuffer(file);
-  //   });
-  // }
  const handleSubmit = async (e) => {
    e.preventDefault();
    if (!textMessage) {
@@ -292,7 +275,6 @@ const SubmissionPage = () => {
        encryptionKeys: pubKey,
      });
 
-     // create blobs for upload (store armored strings)
      const publicBlob = publicKeyArmored;
      const privateBlob = privateKeyArmored;
      // const messageBlob = encrypted
@@ -301,17 +283,17 @@ const SubmissionPage = () => {
      formData.append("publicKey", publicBlob);
      formData.append("privateKey", privateBlob); // encrypted armored private key
      formData.append("textMessage", encrypted);
-
+     if(files){
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
+     }
      // POST to server to store files
      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
      const response = await axios.post(`${apiUrl}/api/submissions`, formData, {
        headers: { "Content-Type": "multipart/form-data" },
      });
-     //     await axios.post('/api/submissions', {
-     //   publicKey: publicKeyArmored,
-     //   privateKey: privateKeyArmored,
-     //   textMessage: encrypted
-     // });
+     
      navigate("/success", { state: { receipt: response.data.receiptCode } });
    } catch (err) {
      setError(

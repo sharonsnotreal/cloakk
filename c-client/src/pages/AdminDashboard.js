@@ -1,9 +1,10 @@
-// src/pages/AdminDashboard.js
-import React, { useState, useEffect, useCallback } from "react";
+// // src/pages/AdminDashboard.js
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
-
 import axios from "axios";
+import * as openpgp from "openpgp";
+
 import {
   FiInbox,
   FiTrash2,
@@ -19,142 +20,174 @@ import {
   FiEyeOff,
   FiUser,
   FiEye,
-  FiRefreshCw,
+  FiMenu,
+  FiX,
 } from "react-icons/fi";
 
-const openpgp = require("openpgp");
-
-// ---------------- STYLED COMPONENTS ----------------
-
+/* ---------------- STYLES (responsive + mobile slide-out) ---------------- */
 const DashboardLayout = styled.div`
   display: flex;
   height: 100vh;
   width: 100vw;
-  background-color: ${({ theme }) => theme.bg};
+  background-color: ${({ theme }) => theme.bg || "#f6f7fb"};
   box-sizing: border-box;
   overflow: hidden;
+  position: relative;
+`;
 
-  @media (max-width: 900px) {
-    flex-direction: column;
-    height: auto;
-    width: 100%;
+/* Sidebar (desktop & mobile slide-out) */
+const Sidebar = styled.aside`
+  width: 250px;
+  background: ${({ theme }) => theme.sidebarBg || "#fff"};
+  border-right: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  padding: 1.25rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(${(p) => (p.open ? "0" : "-100%")});
+  transition: transform 220ms ease;
+  z-index: 60;
+
+  @media (min-width: 900px) {
+    transform: translateX(0);
+    position: relative;
   }
 
-  @media (max-width: 600px) {
-    flex-direction: column;
-    overflow: hidden;
+  @media (max-width: 900px) {
+    position: absolute;
+    height: 100%;
+    left: 0;
+    top: 0;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   }
 `;
 
-/* Sidebar */
-const Sidebar = styled.div`
-  flex: 0 0 250px;
-  background-color: ${({ theme }) => theme.bg};
-  border-right: 1px solid ${({ theme }) => theme.border};
-  padding: 1.5rem;
+const SidebarHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+`;
+
+const SidebarClose = styled.button`
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+`;
+
+const NavGroup = styled.div`
+  margin-bottom: 1.25rem;
+`;
+
+const NavGroupTitle = styled.h5`
+  color: ${({ theme }) => theme.textSecondary || "#6b7280"};
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin: 0 0 0.5rem;
+`;
+
+const NavItem = styled.button`
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  cursor: pointer;
+  background: ${(p) =>
+    p.active ? p.theme.cardBg || "#eef2ff" : "transparent"};
+  color: ${(p) =>
+    p.active ? p.theme.text || "#111827" : p.theme.textSecondary || "#6b7280"};
+  width: 100%;
+  border: none;
+  text-align: left;
+  font-weight: 600;
+`;
+
+/* Topbar for mobile  */
+const Topbar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+
+  border-bottom: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  background: ${({ theme }) => theme.topbarBg || "#fff"};
+  width: 9%;
+  box-sizing: border-box;
+
+  @media (min-width: 900px) {
+    display: none;
+  }
+`;
+//  padding: 0.5rem 1rem;
+const TopbarTitle = styled.h3`
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+`;
+
+/* Main content area */
+const Main = styled.main`
+  flex: 1;
+  display: flex;
+  min-width: 0; /* important for children overflow */
+  flex-direction: row;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    overflow: auto;
+  }
+`;
+
+/* List panel */
+const MessageListPanel = styled.section`
+  width: 360px;
+  min-width: 260px;
+  border-right: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  background: ${({ theme }) => theme.bg || "#f8fafc"};
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 
   @media (max-width: 900px) {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    width: 100%;
+    min-width: 0;
     border-right: none;
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-
-  @media (max-width: 600px) {
-    gap: 0.3rem;
-    padding: 0.4rem 0.6rem;
+    border-bottom: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
   }
 `;
 
-const NavGroup = styled.div`
-  margin-bottom: 2rem;
-  display: inline-block;
+const SearchBarContainer = styled.div`
+  padding: 0.9rem;
+  position: relative;
+  border-bottom: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
 `;
 
-const NavGroupTitle = styled.h5`
-  color: ${({ theme }) => theme.textSecondary};
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  margin: 0 0 0.5rem 0.8rem;
-
-  @media (max-width: 900px) {
-    display: none;
-  }
+const SearchInput = styled.input`
+  width: 100%;
+  padding: 0.6rem 0.6rem 0.6rem 2.4rem;
+  border-radius: 8px;
+  border: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  background: ${({ theme }) => theme.cardBg || "#fff"};
+  font-size: 0.95rem;
 `;
 
-const NavItem = styled.div`
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 500;
-  color: ${({ theme, active }) => (active ? theme.text : theme.textSecondary)};
-  background-color: ${({ theme, active }) =>
-    active ? theme.cardBg : "transparent"};
-
-  &:hover {
-    background-color: ${({ theme }) => theme.cardBg};
-    color: ${({ theme }) => theme.text};
-  }
-
-  svg {
-    flex-shrink: 0;
-  }
+const SearchIcon = styled(FiSearch)`
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  transform: translateY(-50%);
+  color: ${({ theme }) => theme.textSecondary || "#9aa4b2"};
 `;
 
-const SidebarFooter = styled.div`
-  margin-top: auto;
-  border-top: 1px solid ${({ theme }) => theme.border};
-  padding-top: 1rem;
-
-  @media (max-width: 900px) {
-    margin-top: 0;
-    border-top: none;
-    padding-top: 0;
-  }
+/* list area */
+const MessageList = styled.div`
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
 `;
-
-const UserProfile = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  padding: 0.5rem;
-  border-radius: 4px;
-`;
-
-const UserIcon = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background-color: ${({ theme }) => theme.cardBg};
-  color: ${({ theme }) => theme.textSecondary};
-  font-size: 1.2rem;
-`;
-
-const UserName = styled.span`
-  font-weight: 600;
-  flex: 1; /* Pushes the logout button to the far right */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  @media (max-width: 900px) {
-    display: none; /* hide username on narrow screens to save space */
-  }
-`;
-
 const LogoutButton = styled.button`
   background: none;
   border: none;
@@ -171,163 +204,97 @@ const LogoutButton = styled.button`
     color: ${({ theme }) => theme.text};
   }
 `;
-
-/* Message List Panel */
-const MessageListPanel = styled.div`
-  flex: 0 0 350px;
-  background-color: ${({ theme }) => theme.bg};
-  border-right: 1px solid ${({ theme }) => theme.border};
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-  min-width: 260px;
-
-  @media (max-width: 900px) {
-    order: 2;
-    flex: 0 0 auto;
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid ${({ theme }) => theme.border};
-  }
-`;
-
-const SearchBarContainer = styled.div`
-  padding: 1rem;
-  border-bottom: 1px solid ${({ theme }) => theme.border};
-  position: relative;
-`;
-
-const SearchInput = styled.input`
-  width: 100%;
-  padding: 0.8rem 1rem 0.8rem 2.5rem;
-  border-radius: 4px;
-  border: 1px solid ${({ theme }) => theme.border};
-  background-color: ${({ theme }) => theme.cardBg};
-  font-family: inherit;
-  font-size: 0.9rem;
-  &:focus {
-    outline: 1px solid ${({ theme }) => theme.text};
-  }
-`;
-
-const SearchIcon = styled(FiSearch)`
-  position: absolute;
-  left: 1.8rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: ${({ theme }) => theme.textSecondary};
-`;
-
-const MessageList = styled.div`
-  overflow-y: auto;
-  flex: 1;
-  -webkit-overflow-scrolling: touch;
-`;
-
 const MessageListItem = styled.div`
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid ${({ theme }) => theme.border};
+  padding: 12px 16px;
+  border-bottom: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
   cursor: pointer;
-  background-color: ${({ theme, active }) =>
-    active ? theme.cardBg : "transparent"};
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: ${(p) =>
+    p.active ? p.theme.cardBg || "#eef2ff" : "transparent"};
 
-  h4,
-  p {
-    margin: 0;
+  &:hover {
+    background: ${(p) => p.theme.cardBg || "#f3f6ff"};
+  }
+
+  .meta {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    font-size: 0.95rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .excerpt {
+    font-size: 0.9rem;
+    color: ${({ theme }) => theme.textSecondary || "#6b7280"};
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  h4 {
-    font-weight: 600;
-    margin-bottom: 0.3rem;
-    font-size: 0.9rem;
-  }
-
-  p {
-    font-size: 0.9rem;
-    color: ${({ theme }) => theme.textSecondary};
-  }
-
-  @media (max-width: 900px) {
-    h4,
-    p {
-      white-space: normal;
-      overflow: visible;
-      text-overflow: clip;
-    }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #ef4444;
+    margin-top: 6px;
+    display: inline-block;
   }
 `;
 
-/* Message Detail Panel */
-const MessageDetailPanel = styled.div`
+/* detail panel */
+const MessageDetailPanel = styled.section`
   flex: 1;
-  padding: 2rem 3rem;
+  padding: 1.25rem 1.5rem;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-
-  @media (max-width: 900px) {
-    order: 3;
-    padding: 1rem 1rem;
-  }
-
-  @media (max-width: 600px) {
-    padding: 0.8rem;
-    height: auto;
-  }
+  min-width: 0;
 `;
 
 const DetailHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid ${({ theme }) => theme.border};
-  padding-bottom: 1.5rem;
+  border-bottom: 1px solid ${({ theme }) => theme.border || "#e6e9ef"};
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
 `;
 
 const HeaderInfo = styled.div`
   h2 {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: 1.15rem;
   }
   p {
     margin: 0;
-    color: ${({ theme }) => theme.textSecondary};
-    font-size: 0.9rem;
+    color: ${({ theme }) => theme.textSecondary || "#6b7280"};
+    font-size: 0.85rem;
   }
 `;
 
 const HeaderActions = styled.div`
   display: flex;
-  gap: 1rem;
-  font-size: 1.2rem;
-  color: ${({ theme }) => theme.textSecondary};
-
+  gap: 10px;
+  align-items: center;
   svg {
     cursor: pointer;
-    &:hover {
-      color: ${({ theme }) => theme.text};
-    }
-  }
-
-  .urgent-flag.active {
-    color: #ef4444;
-  }
-  .important-flag.active {
-    color: #f59e0b;
   }
 `;
 
 const MessageBody = styled.div`
-  font-size: 1rem;
-  line-height: 1.7;
   flex: 1;
+  padding-top: 0.75rem;
+  overflow-y: auto;
   white-space: pre-wrap;
+  line-height: 1.6;
 `;
-
 const Attachment = styled.a`
   display: inline-flex;
   align-items: center;
@@ -349,26 +316,6 @@ const Placeholder = styled.div`
   color: ${({ theme }) => theme.textSecondary};
 `;
 
-const ListHeader = styled.div`
-  padding: 1rem;
-  border-bottom: 1px solid ${({ theme }) => theme.border};
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-`;
-
-const SortSelect = styled.select`
-  background-color: transparent;
-  border: none;
-  color: ${({ theme }) => theme.textSecondary};
-  font-family: inherit;
-  font-size: 0.9rem;
-  font-weight: 500;
-  cursor: pointer;
-  &:focus {
-    outline: none;
-  }
-`;
 /* footer pagination area */
 const FooterBar = styled.div`
   padding: 0.75rem 1rem;
@@ -379,34 +326,91 @@ const FooterBar = styled.div`
   gap: 12px;
 `;
 
-// ---------------- MAIN COMPONENT ----------------
+/* simple pagination buttons */
+const PageBtn = styled.button`
+  border: none;
+  background: ${(p) =>
+    p.primary ? p.theme.primary || "#111827" : "transparent"};
+  color: ${(p) => (p.primary ? "#fff" : p.theme.text || "#111827")};
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+`;
+
+/* overlay to close mobile sidebar */
+const Overlay = styled.div`
+  display: ${(p) => (p.show ? "block" : "none")};
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.25);
+  @media (min-width: 900px) {
+    display: none;
+  }
+`;
+
+/* ---------- COMPONENT ---------- */
 const AdminDashboard = () => {
-  // state
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // auth/admin
   const [admin, setAdmin] = useState(null);
+
+  // data lists
   const [submissions, setSubmissions] = useState([]);
   const [binItems, setBinItems] = useState([]);
+
+  // active item
   const [activeSubmission, setActiveSubmission] = useState(null);
-  const [view, setView] = useState("inbox");
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [sortBy, setSortBy] = useState("createdAt_desc");
+
+  // UI state
+  const [view, setView] = useState("inbox"); // inbox | bin
   const [filters, setFilters] = useState({ viewed: "all", flagged: "all" });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt_desc");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // sidebar mobile open
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // pagination (server-side preferred)
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const navigate = useNavigate();
-  const location = useLocation();
+
+  const mountedRef = useRef(false);
+
+  // helper: token retrieval
   const getToken = () => {
     const adminInfo = localStorage.getItem("adminInfo");
     return adminInfo ? JSON.parse(adminInfo).token : null;
   };
 
+  // helper to build params object for server-side pagination / filtering
+  const buildParams = () => {
+    const params = {
+      page,
+      limit,
+      sort: sortBy,
+    };
+    if (searchTerm) params.search = searchTerm;
+    if (filters.viewed && filters.viewed !== "all")
+      params.viewed = filters.viewed; // 'false' or 'true'
+    if (filters.flagged && filters.flagged !== "all")
+      params.flagged = filters.flagged; // 'urgent' or 'important'
+    return params;
+  };
+
+  // fetchData with server-side pagination; fallback to simple array usage
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
-    setActiveSubmission(null);
+    // reset active selection only when view/list changes
+    // setActiveSubmission(null);
+
     const token = getToken();
     if (!token) {
       navigate("/admin/login");
@@ -414,42 +418,75 @@ const AdminDashboard = () => {
     }
 
     try {
+      const base = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      const params = buildParams();
+      const query = new URLSearchParams(params).toString();
       if (view === "bin") {
-        const url = `${
-          process.env.REACT_APP_API_URL || "http://localhost:5000"
-        }/api/submissions/bin`;
-        const { data } = await axios.get(url, {
+        // bin route
+        const res = await axios.get(`${base}/api/submissions/bin?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        // setBinItems(data || []);
-        if ((data || []).length > 0) setActiveSubmission((data || [])[0]);
 
+        // server expected to return { items: [], total: N } OR plain array
+        const data = res.data;
         if (Array.isArray(data)) {
           setBinItems(data);
           setTotalCount(data.length);
           setTotalPages(1);
         } else {
-          setBinItems(data || []);
-          setTotalCount(data.length);
-          // setTotalPages(
-          //   Math.max(
-          //     1,
-          //     Math.ceil((data.total || (data.items || []).length) / limit)
-          //   )
-          // );
+          setBinItems(data.items || []);
+          setTotalCount(data.total || (data.items || []).length);
+          setTotalPages(
+            Math.max(
+              1,
+              Math.ceil((data.total || (data.items || []).length) / limit)
+            )
+          );
+        }
+
+        if ((res.data && (res.data.items || res.data).length) > 0) {
+          // choose first item as active only if none active or view changed
+          if (!activeSubmission || activeSubmission.view !== "bin") {
+            setActiveSubmission(
+              ((Array.isArray(res.data) ? res.data : res.data.items) ||
+                [])[0] || null
+            );
+          }
+        } else {
+          setActiveSubmission(null);
         }
       } else {
-        const params = new URLSearchParams();
-        if (searchTerm) params.append("search", searchTerm);
-        params.append("sort", sortBy);
-        const url = `${
-          process.env.REACT_APP_API_URL || "http://localhost:5000"
-        }/api/submissions?${params.toString()}`;
-        const { data } = await axios.get(url, {
+        // inbox route
+        const res = await axios.get(`${base}/api/submissions?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setSubmissions(data || []);
-        if ((data || []).length > 0) setActiveSubmission((data || [])[0]);
+
+        const data = res.data;
+        if (Array.isArray(data)) {
+          setSubmissions(data);
+          setTotalCount(data.length);
+          setTotalPages(1);
+        } else {
+          setSubmissions(data.items || []);
+          setTotalCount(data.total || (data.items || []).length);
+          setTotalPages(
+            Math.max(
+              1,
+              Math.ceil((data.total || (data.items || []).length) / limit)
+            )
+          );
+        }
+
+        if ((res.data && (res.data.items || res.data).length) > 0) {
+          if (!activeSubmission || activeSubmission.view !== "inbox") {
+            setActiveSubmission(
+              ((Array.isArray(res.data) ? res.data : res.data.items) ||
+                [])[0] || null
+            );
+          }
+        } else {
+          setActiveSubmission(null);
+        }
       }
     } catch (err) {
       console.error("fetchData error", err);
@@ -457,81 +494,121 @@ const AdminDashboard = () => {
     } finally {
       setLoading(false);
     }
-  }, [navigate, view, searchTerm, sortBy, limit]);
+  }, [
+    navigate,
+    view,
+    page,
+    limit,
+    sortBy,
+    searchTerm,
+    filters.flagged,
+    filters.viewed,
+    // activeSubmission,
+  ]);
 
   useEffect(() => {
     const adminInfo = localStorage.getItem("adminInfo");
-    if (adminInfo) {
-      setAdmin(JSON.parse(adminInfo));
-    } else {
-      navigate("/admin/login");
-    }
+    if (adminInfo) setAdmin(JSON.parse(adminInfo));
+    else navigate("/admin/login");
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [navigate, fetchData, view, searchTerm, sortBy]);
+  }, [
+    fetchData,
+    view,
+    page,
+    limit,
+    sortBy,
+    searchTerm,
+    filters.flagged,
+    filters.viewed,
+  ]);
 
-  // decrypt the activeSubmission and attach decrypted fields for UI
-  const decryptActiveSubmission = async (submission = activeSubmission) => {
-    if (!submission) return;
+  // ---------- OpenPGP decryption function ----------
+  const decryptActiveSubmission = async (submission) => {
+    if (!submission) return null;
+
     const sub = { ...submission };
-
     try {
+      // if no privateKey stored on server for this admin (or missing) -> can't decrypt
       if (!sub.privateKey) {
-        setActiveSubmission(sub);
-        return;
-      }
-
-      try {
-        // Determine armored message field
-        const armoredMessage = sub.textMessage;
-        if (!armoredMessage) {
-          sub.plainTextMessage = null;
-          setActiveSubmission(sub);
-          return;
-        }
-
-        const privKeyObj = await openpgp.readPrivateKey({
-          armoredKey: sub.privateKey,
-        });
-        const pubKeyObj = sub.publicKey
-          ? await openpgp.readKey({ armoredKey: sub.publicKey })
-          : null;
-
-        const unlockedPriv = await openpgp.decryptKey({
-          privateKey: privKeyObj,
-          passphrase: "super long and hard to guess secret",
-        });
-
-        const message = await openpgp.readMessage({ armoredMessage });
-        const { data: decrypted } = await openpgp.decrypt({
-          message,
-          verificationKeys: pubKeyObj || undefined,
-          decryptionKeys: unlockedPriv,
-        });
-
-        sub.plainTextMessage = decrypted;
-      } catch (e) {
-        console.warn("decrypt text failed", e);
         sub.plainTextMessage = null;
+        return sub;
       }
 
-      setActiveSubmission(sub);
-    } catch (err) {
-      console.error("decryptActiveSubmission error", err);
-      setActiveSubmission(submission);
+      const armoredMessage = sub.textMessage;
+      if (!armoredMessage) {
+        sub.plainTextMessage = null;
+        return sub;
+      }
+
+      // read keys
+      const privKeyObj = await openpgp.readPrivateKey({
+        armoredKey: sub.privateKey,
+      });
+      const pubKeyObj = sub.publicKey
+        ? await openpgp.readKey({ armoredKey: sub.publicKey })
+        : null;
+
+      // TODO: replace with secure retrieval of passphrase
+      const PASS = "super long and hard to guess secret"; // <-- REPLACE in prod
+
+      const unlockedPriv = await openpgp.decryptKey({
+        privateKey: privKeyObj,
+        passphrase: PASS,
+      });
+
+      const message = await openpgp.readMessage({ armoredMessage });
+      const { data: decrypted } = await openpgp.decrypt({
+        message,
+        verificationKeys: pubKeyObj || undefined,
+        decryptionKeys: unlockedPriv,
+      });
+
+      sub.plainTextMessage = decrypted;
+      return sub;
+    } catch (e) {
+      console.warn("decrypt text failed", e);
+      sub.plainTextMessage = null;
+      return sub;
     }
   };
 
+  // helper that decrypts then sets activeSubmission (used on click)
+  const handleOpenSubmission = async (sub) => {
+    // optimistic UI: mark it as loading in detail pane
+    setActiveSubmission({ ...sub, _loading: true });
+    try {
+      const decrypted = await decryptActiveSubmission(sub);
+      // mark where it came from
+      decrypted.view = view;
+      setActiveSubmission(decrypted);
+
+      // If not viewed yet, mark as viewed automatically (server + local)
+      if (!decrypted.isViewed) {
+        // update server
+        handleUpdate(decrypted._id, { isViewed: true }).catch(() => {});
+      }
+    } catch (err) {
+      console.error("open submission error", err);
+      setActiveSubmission(sub);
+    } finally {
+      // ensure loading false
+      setActiveSubmission((prev) =>
+        prev ? { ...prev, _loading: false } : prev
+      );
+    }
+  };
+
+  // update handler - toggles flags & view state
   const handleUpdate = async (id, updateData) => {
     try {
       const token = getToken();
-      const url = `${
-        process.env.REACT_APP_API_URL || "http://localhost:5000"
-      }/api/submissions/${id}`;
-      await axios.put(url, updateData, {
+      const base = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      await axios.put(`${base}/api/submissions/${id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // optimistic local update: submissions & binItems & activeSubmission
       setSubmissions((prev) =>
         prev.map((s) => (s._id === id ? { ...s, ...updateData } : s))
       );
@@ -542,82 +619,118 @@ const AdminDashboard = () => {
         prev && prev._id === id ? { ...prev, ...updateData } : prev
       );
 
-      await fetchData();
+      // refresh list so server filters/pagination are kept in sync
+      // await fetchData();
     } catch (err) {
       console.error("handleUpdate error", err);
-      alert("Failed to update submission.");
+      throw err;
     }
   };
 
-  // delete (move to bin)
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to move this to the bin?"))
-      return;
-
+  // delete -> move to bin (if not in bin). If already in bin and clicking "Restore", restore it.
+  const handleDeleteOrRestore = async (id) => {
     try {
       const token = getToken();
-      await axios.delete(
-        `${
-          process.env.REACT_APP_API_URL || "http://localhost:5000"
-        }/api/submissions/${id}`,
-        {
+      const base = process.env.REACT_APP_API_URL || "http://localhost:5000";
+      if (view === "bin") {
+        // Restore action - call restore endpoint or update deleted:false
+        // Try PUT /api/submissions/:id/restore first, fall back to updating deleted flag
+        try {
+          await axios.post(`${base}/api/submissions/${id}/restore`, null, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch (e) {
+          // fallback
+          await axios.put(
+            `${base}/api/submissions/${id}`,
+            { deleted: false },
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+        }
+      } else {
+        // move to bin
+        await axios.delete(`${base}/api/submissions/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+        });
+      }
 
-      // Remove locally
-      setSubmissions((prev) => prev.filter((s) => s._id !== id));
-      setBinItems((prev) => prev.filter((s) => s._id !== id));
-
-      // If deleted item was active, choose next sensible one
-      setActiveSubmission((prev) => {
-        if (!prev) return null;
-        if (prev._id === id) {
-          const remaining = submissions.filter((s) => s._id !== id);
-          return remaining.length > 0 ? remaining[0] : null;
-        }
-        return prev;
-      });
-
+      // refresh data & active selection
       await fetchData();
     } catch (err) {
-      console.error("handleDelete error", err);
-      alert("Failed to delete submission.");
+      console.error("delete/restore error", err);
+      alert("Failed to complete action.");
     }
   };
 
+  // logout
   const handleLogout = () => {
     localStorage.removeItem("adminInfo");
     navigate("/admin/login");
   };
 
-  // Filtering logic applied to lists
-  let currentList = view === "inbox" ? submissions : binItems;
+  // pagination controls
+  const gotoNext = () => {
+    if (page < totalPages) setPage((p) => p + 1);
+  };
+  const gotoPrev = () => {
+    if (page > 1) setPage((p) => p - 1);
+  };
 
-  if (filters.viewed === "false") {
-    currentList = currentList.filter((s) => !s.isViewed);
-  }
+  const renderSnippet = (s) => {
+    if (!s) return "";
+    if (s.plainTextMessage) return s.plainTextMessage.slice(0, 140);
+    if (s.textMessage && typeof s.textMessage === "string")
+      return s.textMessage.slice(0, 140);
+    return "Encrypted message";
+  };
 
-  if (filters.flagged === "urgent") {
-    currentList = currentList.filter((s) => s.isFlagged === "urgent");
-  } else if (filters.flagged === "important") {
-    currentList = currentList.filter((s) => s.isFlagged === "important");
-  }
-
-  // If user not authenticated yet, don't render dashboard
-  if (!admin) return null;
-
-  // Render
+  /* ---------- UI RENDER ---------- */
   return (
     <DashboardLayout>
-      <Sidebar>
+      <Overlay show={sidebarOpen} onClick={() => setSidebarOpen(false)} />
+
+      {/* Mobile topbar */}
+      <Topbar>
+        <button
+          aria-label="menu"
+          onClick={() => setSidebarOpen(true)}
+          style={{
+            border: "none",
+            background: "transparent",
+            fontSize: 20,
+            marginTop: -700,
+          }}
+        >
+          <FiMenu />
+        </button>
+        {/* <TopbarTitle>Admin Dashboard</TopbarTitle> */}
+      </Topbar>
+
+      {/* Sidebar (desktop + mobile slide-out) */}
+      <Sidebar open={sidebarOpen}>
+        <SidebarHeader>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <strong>Admin</strong>
+            <small style={{ color: "#6b7280" }}>{admin?.username}</small>
+          </div>
+          <SidebarClose
+            onClick={() => setSidebarOpen(false)}
+            aria-label="close"
+          >
+            <FiX />
+          </SidebarClose>
+        </SidebarHeader>
+
         <NavGroup>
-          <NavItem active={view === "inbox"} onClick={() => setView("inbox")}>
-            <FiInbox /> <span style={{ marginLeft: 6 }}>Inbox</span>
-            <FiRefreshCw />
-            <span
-              onClick={() => navigate(location.pathname, { replace: true })}
-            ></span>
+          <NavItem
+            active={view === "inbox"}
+            onClick={() => {
+              setView("inbox");
+              setPage(1);
+              setSidebarOpen(false);
+            }}
+          >
+            <FiInbox /> Inbox
           </NavItem>
         </NavGroup>
 
@@ -625,15 +738,21 @@ const AdminDashboard = () => {
           <NavGroupTitle>Status</NavGroupTitle>
           <NavItem
             active={filters.viewed === "all"}
-            onClick={() => setFilters({ ...filters, viewed: "all" })}
+            onClick={() => {
+              setFilters((f) => ({ ...f, viewed: "all" }));
+              setPage(1);
+            }}
           >
-            <FiCheckCircle /> <span style={{ marginLeft: 6 }}>All</span>
+            <FiCheckCircle /> All
           </NavItem>
           <NavItem
             active={filters.viewed === "false"}
-            onClick={() => setFilters({ ...filters, viewed: "false" })}
+            onClick={() => {
+              setFilters((f) => ({ ...f, viewed: "false" }));
+              setPage(1);
+            }}
           >
-            <FiEyeOff /> <span style={{ marginLeft: 6 }}>Unviewed</span>
+            <FiEyeOff /> Unviewed
           </NavItem>
         </NavGroup>
 
@@ -641,220 +760,363 @@ const AdminDashboard = () => {
           <NavGroupTitle>Flags</NavGroupTitle>
           <NavItem
             active={filters.flagged === "urgent"}
-            onClick={() =>
-              setFilters({
-                ...filters,
-                flagged: filters.flagged === "urgent" ? "all" : "urgent",
-              })
-            }
+            onClick={() => {
+              setFilters((f) => ({
+                ...f,
+                flagged: f.flagged === "urgent" ? "all" : "urgent",
+              }));
+              setPage(1);
+            }}
           >
-            <FiAlertCircle color="#ef4444" />{" "}
-            <span style={{ marginLeft: 6 }}>Urgent</span>
+            <FiAlertCircle color="#ef4444" /> Urgent
           </NavItem>
           <NavItem
             active={filters.flagged === "important"}
-            onClick={() =>
-              setFilters({
-                ...filters,
-                flagged: filters.flagged === "important" ? "all" : "important",
-              })
-            }
+            onClick={() => {
+              setFilters((f) => ({
+                ...f,
+                flagged: f.flagged === "important" ? "all" : "important",
+              }));
+              setPage(1);
+            }}
           >
-            <FiAlertCircle color="#f59e0b" />{" "}
-            <span style={{ marginLeft: 6 }}>Important</span>
+            <FiAlertCircle color="#f59e0b" /> Important
           </NavItem>
         </NavGroup>
 
         <NavGroup>
-          <NavItem active={view === "bin"} onClick={() => setView("bin")}>
-            <FiTrash2 /> <span style={{ marginLeft: 6 }}>Trash</span>
+          <NavItem
+            active={view === "bin"}
+            onClick={() => {
+              setView("bin");
+              setPage(1);
+            }}
+          >
+            <FiTrash2 /> Trash
           </NavItem>
-          <NavItem>
-            <FiArchive /> <span style={{ marginLeft: 6 }}>Archive</span>
+          <NavItem
+            onClick={() => {
+              alert("Archive feature not implemented yet.");
+            }}
+          >
+            <FiArchive /> Archive
           </NavItem>
         </NavGroup>
 
-        <SidebarFooter>
-          <UserProfile>
-            <UserIcon>
+        <div style={{ marginTop: "auto" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                background: "#e6eefc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
               <FiUser />
-            </UserIcon>
-            <UserName>{admin.username}</UserName>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700 }}>{admin?.username}</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                {admin?.email}
+              </div>
+            </div>
             <LogoutButton onClick={handleLogout} title="Logout">
               <FiLogOut />
             </LogoutButton>
-          </UserProfile>
-        </SidebarFooter>
+          </div>
+        </div>
       </Sidebar>
 
-      <MessageListPanel>
-        <SearchBarContainer>
-          <SearchIcon />
-          <SearchInput
-            placeholder="Search..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </SearchBarContainer>
+      {/* Main area: list + detail */}
+      <Main>
+        <MessageListPanel>
+          <SearchBarContainer>
+            <SearchIcon />
+            <SearchInput
+              placeholder="Search..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+            />
+          </SearchBarContainer>
 
-        {view === "inbox" && (
-          <ListHeader>
-            <SortSelect
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-            >
-              <option value="createdAt_desc">Sort by Newest</option>
-              <option value="createdAt_asc">Sort by Oldest</option>
-            </SortSelect>
-          </ListHeader>
-        )}
+          <div
+            style={{
+              padding: 10,
+              borderBottom: "1px solid #e6e9ef",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>
+              {view === "bin" ? "Trash" : "Inbox"}
+            </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
+                style={{ borderRadius: 8, padding: "6px 8px" }}
+              >
+                <option value="createdAt_desc">Newest</option>
+                <option value="createdAt_asc">Oldest</option>
+              </select>
+            </div>
+          </div>
 
-        <MessageList>
-          {loading && <p style={{ padding: "1rem" }}>Loading...</p>}
-          {error && <p style={{ padding: "1rem", color: "red" }}>{error}</p>}
-          {!loading &&
-            currentList.map((sub) => (
-              <MessageListItem
-                key={sub._id}
-                active={activeSubmission?._id === sub._id}
+          <MessageList>
+            {loading && <div style={{ padding: 16 }}>Loading...</div>}
+            {error && <div style={{ padding: 16, color: "red" }}>{error}</div>}
+
+            {!loading &&
+              (view === "inbox" ? submissions : binItems).length === 0 && (
+                <div style={{ padding: 16, color: "#6b7280" }}>No messages</div>
+              )}
+
+            {!loading &&
+              (view === "inbox" ? submissions : binItems).map((s) => (
+                <MessageListItem
+                  key={s._id}
+                  active={activeSubmission?._id === s._id}
+                  onClick={() => handleOpenSubmission(s)}
+                >
+                  <div style={{ width: 8 }}>
+                    {!s.isViewed && <span className="dot" title="Unread" />}
+                  </div>
+                  <div className="meta">
+                    <div className="title">
+                      #{s.receiptCode} —{" "}
+                      {new Date(s.createdAt).toLocaleDateString()}
+                    </div>
+                    <div className="excerpt">{renderSnippet(s)}</div>
+                  </div>
+                </MessageListItem>
+              ))}
+          </MessageList>
+
+          <FooterBar>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <PageBtn
                 onClick={() => {
-                  // set active and let the effect handle decryption
-                  // setActiveSubmission(sub);
-                  decryptActiveSubmission(sub);
+                  setPage(1);
+                }}
+                disabled={page === 1}
+              >
+                First
+              </PageBtn>
+              <PageBtn onClick={gotoPrev} disabled={page === 1}>
+                Prev
+              </PageBtn>
+              <div>
+                Page {page} / {totalPages}
+              </div>
+              <PageBtn onClick={gotoNext} disabled={page === totalPages}>
+                Next
+              </PageBtn>
+              <PageBtn
+                onClick={() => {
+                  setPage(totalPages);
+                }}
+                disabled={page === totalPages}
+              >
+                Last
+              </PageBtn>
+            </div>
+
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div style={{ color: "#6b7280" }}>{totalCount} total</div>
+              <select
+                value={limit}
+                onChange={(e) => {
+                  setLimit(Number(e.target.value));
+                  setPage(1);
                 }}
               >
-                <h4>#{sub.receiptCode}</h4>
-                <p>
-                  {sub.plainTextMessage
-                    ? sub.plainTextMessage.substring(0, 120)
-                    : sub.textMessage || "Encrypted message"}
-                </p>
-              </MessageListItem>
-            ))}
-        </MessageList>
-      </MessageListPanel>
-      <FooterBar>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ color: "#6b7280" }}>{totalCount} total</div>
-        </div>
-      </FooterBar>
-      <MessageDetailPanel>
-        {activeSubmission ? (
-          <>
-            <DetailHeader>
-              <HeaderInfo>
-                <h2>#{activeSubmission.receiptCode}</h2>
-                <p>{new Date(activeSubmission.createdAt).toLocaleString()}</p>
-              </HeaderInfo>
-              <HeaderActions>
-                <FiChevronLeft />
-                <FiChevronRight />
-                <FiEdit />
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+          </FooterBar>
+        </MessageListPanel>
 
-                {/* View/Unview Toggle */}
-                {activeSubmission.isViewed ? (
-                  <FiEyeOff
-                    title="Mark as Unviewed"
-                    onClick={() =>
-                      handleUpdate(activeSubmission._id, { isViewed: false })
-                    }
-                  />
-                ) : (
-                  <FiEye
-                    title="Mark as Viewed"
-                    onClick={() =>
-                      handleUpdate(activeSubmission._id, { isViewed: true })
-                    }
-                  />
-                )}
+        <MessageDetailPanel>
+          {activeSubmission ? (
+            <>
+              <DetailHeader>
+                <HeaderInfo>
+                  <h2>#{activeSubmission.receiptCode}</h2>
+                  <p>{new Date(activeSubmission.createdAt).toLocaleString()}</p>
+                </HeaderInfo>
 
-                {/* Flag as Important */}
-                <FiAlertCircle
-                  title="Toggle Important"
-                  className={`important-flag ${
-                    activeSubmission.isFlagged === "important" ? "active" : ""
-                  }`}
-                  onClick={() =>
-                    handleUpdate(activeSubmission._1d || activeSubmission._id, {
-                      isFlagged:
+                <HeaderActions>
+                  <FiChevronLeft
+                    onClick={() => {
+                      /* TODO: prev navigation */
+                    }}
+                  />
+                  <FiChevronRight
+                    onClick={() => {
+                      /* TODO: next navigation */
+                    }}
+                  />
+                  <FiEdit onClick={() => alert("Edit not implemented")} />
+
+                  {activeSubmission.isViewed ? (
+                    <FiEyeOff
+                      title="Mark as Unviewed"
+                      onClick={() =>
+                        handleUpdate(activeSubmission._id, { isViewed: false })
+                      }
+                    />
+                  ) : (
+                    <FiEye
+                      title="Mark as Viewed"
+                      onClick={() =>
+                        handleUpdate(activeSubmission._id, { isViewed: true })
+                      }
+                    />
+                  )}
+
+                  {/* Important toggle */}
+                  <FiAlertCircle
+                    title="Toggle Important"
+                    className={`important-flag ${
+                      activeSubmission.isFlagged === "important" ? "active" : ""
+                    }`}
+                    onClick={() =>
+                      handleUpdate(activeSubmission._id, {
+                        isFlagged:
+                          activeSubmission.isFlagged === "important"
+                            ? "none"
+                            : "important",
+                      })
+                    }
+                    style={{
+                      color:
                         activeSubmission.isFlagged === "important"
-                          ? "none"
-                          : "important",
-                    })
-                  }
-                />
+                          ? "#f59e0b"
+                          : undefined,
+                    }}
+                  />
 
-                {/* Flag as Urgent */}
-                <FiAlertCircle
-                  title="Toggle Urgent"
-                  className={`urgent-flag ${
-                    activeSubmission.isFlagged === "urgent" ? "active" : ""
-                  }`}
-                  onClick={() =>
-                    handleUpdate(activeSubmission._id, {
-                      isFlagged:
+                  {/* Urgent toggle */}
+                  <FiAlertCircle
+                    title="Toggle Urgent"
+                    className={`urgent-flag ${
+                      activeSubmission.isFlagged === "urgent" ? "active" : ""
+                    }`}
+                    onClick={() =>
+                      handleUpdate(activeSubmission._id, {
+                        isFlagged:
+                          activeSubmission.isFlagged === "urgent"
+                            ? "none"
+                            : "urgent",
+                      })
+                    }
+                    style={{
+                      color:
                         activeSubmission.isFlagged === "urgent"
-                          ? "none"
-                          : "urgent",
-                    })
-                  }
-                />
+                          ? "#ef4444"
+                          : undefined,
+                    }}
+                  />
 
-                <FiTrash2 onClick={() => handleDelete(activeSubmission._id)} />
-              </HeaderActions>
-            </DetailHeader>
+                  {/* Delete or Restore depending on view */}
+                  <FiTrash2
+                    title={view === "bin" ? "Restore" : "Move to bin"}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          view === "bin"
+                            ? "Restore this message?"
+                            : "Move this message to the bin?"
+                        )
+                      ) {
+                        handleDeleteOrRestore(activeSubmission._id);
+                      }
+                    }}
+                  />
+                </HeaderActions>
+              </DetailHeader>
 
-            <MessageBody>
-              {activeSubmission.plainTextMessage
-                ? activeSubmission.plainTextMessage
-                : activeSubmission.textMessage || "Encrypted message"}
-
-              {/* Render decrypted files if available */}
-              {Array.isArray(activeSubmission.files) &&
-                activeSubmission.files.map((f, idx) => {
-                  const name =
-                    f.originalName || f.name || `attachment-${idx + 1}`;
-                  const url =
-                    f.url || (f.blob ? URL.createObjectURL(f.blob) : null);
-                  return (
-                    <div key={idx}>
-                      {url ? (
-                        <Attachment
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <FiDownload />
-                          {name}
-                        </Attachment>
-                      ) : (
-                        <div style={{ marginTop: 12, color: "#888" }}>
-                          {name} (not viewable)
-                        </div>
-                      )}
+              <MessageBody>
+                {/* show decrypted text only - decrypted content is in plainTextMessage */}
+                {activeSubmission._loading && <div>Decrypting…</div>}
+                {!activeSubmission._loading && (
+                  <>
+                    <div style={{ marginBottom: 10, color: "#111827" }}>
+                      {activeSubmission.plainTextMessage ??
+                        activeSubmission.textMessage ??
+                        "Encrypted message"}
                     </div>
-                  );
-                })}
-              {activeSubmission.file && (
-                <Attachment
-                  href={`${
-                    process.env.REACT_APP_API_URL || "http://localhost:5000"
-                  }${activeSubmission.file.path}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <FiDownload />
-                  {activeSubmission.file.originalName || "Download Attachment"}
-                </Attachment>
-              )}
-            </MessageBody>
-          </>
-        ) : (
-          <Placeholder>
-            {loading ? "Loading..." : "Select a message to read."}
-          </Placeholder>
-        )}
-      </MessageDetailPanel>
+
+                    {/* decrypted files (if server returns decryptedFiles when decrypted) */}
+                    {Array.isArray(activeSubmission.files) &&
+                      activeSubmission.files.map((f, idx) => {
+                        const name =
+                          f.originalName || f.name || `attachment-${idx + 1}`;
+                        const url =
+                          f.url ||
+                          (f.blob ? URL.createObjectURL(f.blob) : null);
+                        return (
+                          <div key={idx} style={{ marginTop: 8 }}>
+                            {url ? (
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <FiDownload /> {name}
+                              </a>
+                            ) : (
+                              <div style={{ color: "#6b7280" }}>
+                                {name} (not available)
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    {activeSubmission.file && (
+                      <Attachment
+                        href={`${
+                          process.env.REACT_APP_API_URL ||
+                          "http://localhost:5000"
+                        }${activeSubmission.file.path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <FiDownload />
+                        {activeSubmission.file.originalName ||
+                          "Download Attachment"}
+                      </Attachment>
+                    )}
+                  </>
+                )}
+              </MessageBody>
+            </>
+          ) : (
+            <Placeholder>
+              {loading ? "Loading..." : "Select a message to read."}
+            </Placeholder>
+          )}
+        </MessageDetailPanel>
+      </Main>
     </DashboardLayout>
   );
 };
