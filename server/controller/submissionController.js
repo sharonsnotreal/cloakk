@@ -2,7 +2,7 @@ const asyncHandler = require("express-async-handler");
 const { v4: uuidv4 } = require("uuid");
 const Submission = require("../models/submission");
 const AuditLog = require("../models/auditlog");
-const xss = require("xss");
+// const xss = require("xss");
 
 // Generate a random receipt code
 const generateReceiptCode = () => {
@@ -16,20 +16,21 @@ const generateReceiptCode = () => {
  * @access  Public (Time-restricted)
  */
 const createSubmission = asyncHandler(async (req, res) => {
-  const { textMessage } = req.body;
+  const { textMessage, privateKey, publicKey } = req.body;
 
   if (!textMessage) {
     res.status(400);
     throw new Error("Text message is required");
   }
   // Sanitize input to prevent XSS
-  const sanitizedTextMessage = xss(textMessage);
+  // const sanitizedTextMessage = xss(textMessage);
 
   const submissionData = {
-    textMessage: sanitizedTextMessage,
+    textMessage,
+    privateKey,
+    publicKey,
     receiptCode: generateReceiptCode(),
   };
-
   const files = Array.isArray(req.files)
     ? req.files
     : req.file
@@ -64,6 +65,7 @@ const createSubmission = asyncHandler(async (req, res) => {
     fileCount: submissionData.files ? submissionData.files.length : 0,
   });
 });
+
 
 /**
  * @desc    Get all submissions for admin

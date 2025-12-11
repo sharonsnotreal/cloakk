@@ -1,16 +1,29 @@
-import React, { useState , useRef} from 'react';
+import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
+// import { encryptBytesForRecipients, fileToUint8Array } from "../lib/e2e"; // adjust path if needed
 
+
+
+
+
+// import Axios from "axios";
+
+const openpgp = require("openpgp");
+// import
 const PageContainer = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   padding: 2rem;
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const MainCard = styled(motion.div)`
@@ -21,13 +34,26 @@ const MainCard = styled(motion.div)`
   border-radius: ${({ theme }) => theme.borderRadius};
   border: 1px solid ${({ theme }) => theme.borderColor};
   overflow: hidden;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    max-width: 95%;
+  }
 `;
 
 const DisclaimerPanel = styled.div`
   flex: 1;
-  background: #F9FAFB;
+  background: #f9fafb;
   padding: 2rem;
   color: ${({ theme }) => theme.darkGrey};
+
+  @media (max-width: 900px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const DisclaimerItem = styled.div`
@@ -43,6 +69,15 @@ const DisclaimerItem = styled.div`
     margin-top: 3px;
     font-size: 1.2rem;
   }
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+    gap: 0.7rem;
+
+    svg {
+      font-size: 1rem;
+    }
+  }
 `;
 
 const FormPanel = styled.div`
@@ -50,12 +85,25 @@ const FormPanel = styled.div`
   padding: 2rem;
   display: flex;
   flex-direction: column;
+
+  @media (max-width: 900px) {
+    padding: 1.5rem;
+  }
+
+  @media (max-width: 600px) {
+    padding: 1rem;
+  }
 `;
 
 const Title = styled.h2`
   font-size: 1.5rem;
   margin: 0 0 2rem 0;
   text-align: center;
+
+  @media (max-width: 600px) {
+    font-size: 1.25rem;
+    margin-bottom: 1.2rem;
+  }
 `;
 
 const DragDropArea = styled.label`
@@ -66,8 +114,14 @@ const DragDropArea = styled.label`
   margin-bottom: 1rem;
   cursor: pointer;
   transition: border-color 0.2s;
+
   &:hover {
     border-color: ${({ theme }) => theme.primary};
+  }
+
+  @media (max-width: 600px) {
+    padding: 1.5rem;
+    font-size: 0.9rem;
   }
 `;
 
@@ -81,9 +135,15 @@ const MessageInput = styled.textarea`
   font-size: 1rem;
   resize: vertical;
   margin-bottom: 1rem;
+
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.primary};
+  }
+
+  @media (max-width: 600px) {
+    min-height: 120px;
+    font-size: 0.9rem;
   }
 `;
 
@@ -96,9 +156,15 @@ const SubmitButton = styled.button`
   font-size: 1rem;
   cursor: pointer;
   transition: opacity 0.2s;
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  @media (max-width: 600px) {
+    padding: 0.7rem;
+    font-size: 0.95rem;
   }
 `;
 
@@ -106,6 +172,10 @@ const ErrorMessage = styled.p`
   color: #ef4444;
   text-align: center;
   font-size: 0.9rem;
+
+  @media (max-width: 600px) {
+    font-size: 0.85rem;
+  }
 `;
 
 const SubmissionPage = () => {
@@ -113,10 +183,11 @@ const SubmissionPage = () => {
   const [files, setFiles] = useState([]); // array of File objects
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState([]);
   const navigate = useNavigate();
+
   const inputRef = useRef(null);
 
- 
   const ALLOWED_TYPES = [
     "application/pdf",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
@@ -127,6 +198,7 @@ const SubmissionPage = () => {
   const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB per file
   const MAX_FILES = 5;
 
+  
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files || []);
     addFiles(selectedFiles);
@@ -182,38 +254,73 @@ const SubmissionPage = () => {
     inputRef.current?.click();
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!textMessage) {
-      setError("A text message is required.");
-      return;
-    }
-    setLoading(true);
-    setError("");
+  // function readFileAsArrayBuffer(file) {
+  //   return new Promise((resolve, reject) => {
+  //     const fr = new FileReader();
+  //     fr.onerror = () => {
+  //       fr.abort();
+  //       reject(new Error("File read error"));
+  //     };
+  //     fr.onload = () => resolve(fr.result);
+  //     fr.readAsArrayBuffer(file);
+  //   });
+  // }
+ const handleSubmit = async (e) => {
+   e.preventDefault();
+   if (!textMessage) {
+     setError("A text message is required.");
+     return;
+   }
+   setLoading(true);
+   setError("");
 
-    try {
-      const formData = new FormData();
-      formData.append("textMessage", textMessage);
+   try {
+     // generate armored keys (privateKey is already armored & encrypted by passphrase)
+     const { privateKey: privateKeyArmored, publicKey: publicKeyArmored } =
+       await openpgp.generateKey({
+         type: "ecc",
+         curve: "curve25519",
+         userIDs: [{ name: "cloakk-user", email: "cloakk-user@example.com" }],
+         passphrase: "super long and hard to guess secret",
+         format: "armored",
+       });
 
-      // append multiple files using the same field name 'files'
-      files.forEach((f) => {
-        formData.append("files", f);
-      });
+     // encrypt the message with the public key
+     const pubKey = await openpgp.readKey({ armoredKey: publicKeyArmored });
+     const encrypted = await openpgp.encrypt({
+       message: await openpgp.createMessage({ text: textMessage }),
+       encryptionKeys: pubKey,
+     });
 
-      const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
-      const response = await axios.post(`${apiUrl}/api/submissions`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+     // create blobs for upload (store armored strings)
+     const publicBlob = publicKeyArmored;
+     const privateBlob = privateKeyArmored;
+     // const messageBlob = encrypted
+     console.log(publicBlob, privateBlob);
+     const formData = new FormData();
+     formData.append("publicKey", publicBlob);
+     formData.append("privateKey", privateBlob); // encrypted armored private key
+     formData.append("textMessage", encrypted);
 
-      navigate("/success", { state: { receipt: response.data.receiptCode } });
-    } catch (err) {
-      setError(err.response?.data?.message || "Submission failed.");
-    } finally {
-      setLoading(false);
-    }
-  };
+     // POST to server to store files
+     const apiUrl = process.env.REACT_APP_API_URL || "http://localhost:5000";
+     const response = await axios.post(`${apiUrl}/api/submissions`, formData, {
+       headers: { "Content-Type": "multipart/form-data" },
+     });
+     //     await axios.post('/api/submissions', {
+     //   publicKey: publicKeyArmored,
+     //   privateKey: privateKeyArmored,
+     //   textMessage: encrypted
+     // });
+     navigate("/success", { state: { receipt: response.data.receiptCode } });
+   } catch (err) {
+     setError(
+       err.response?.data?.message || err.message || "Submission failed."
+     );
+   } finally {
+     setLoading(false);
+   }
+ };
 
   return (
     <PageContainer>

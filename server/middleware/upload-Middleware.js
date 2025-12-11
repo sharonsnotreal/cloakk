@@ -70,10 +70,11 @@ const upload = multer({
 
 const fileCheck =  async (req, res, next) => {
   try {
-    const { file } = req;
-    if (!file || !file.buffer) return res.status(400).send('No file uploaded');
+    const { files } = req;
+    if (!files || !files.buffer )
+      return res.status(400).send("No file uploaded");
 
-    const type = await fileTypeFromBuffer(file.buffer);
+    const type = await fileTypeFromBuffer(files.buffer);
     if (!type || !allowedMimeTypes.includes(type.mime)) {
       return res.status(400).send('Invalid file type');
     }
