@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { motion } from 'framer-motion';
 import { FiAlertTriangle, FiShield, FiFileText, FiX } from 'react-icons/fi';
-// import { encryptBytesForRecipients, fileToUint8Array } from "../lib/e2e"; // adjust path if needed
+
 
 // import Axios from "axios";
 const openpgp = require("openpgp");

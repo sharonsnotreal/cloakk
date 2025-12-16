@@ -8,7 +8,7 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 
 
-router.post("/register", registerAdmin); // Should be protected or used in a setup script
+router.post("/register", registerAdmin); 
 router.post("/login", loginAdmin);
 router.get("/audit-logs", protect, getAuditLogs);
 
