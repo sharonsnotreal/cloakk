@@ -581,7 +581,8 @@ const AdminDashboard = () => {
       const decrypted = await decryptActiveSubmission(sub);
       // mark where it came from
       decrypted.view = view;
-      setActiveSubmission(decrypted);
+      setActiveSubmission(decrypted); 
+    
 
       // If not viewed yet, mark as viewed automatically (server + local)
       if (!decrypted.isViewed) {
@@ -607,6 +608,7 @@ const AdminDashboard = () => {
       await axios.put(`${base}/api/submissions/${id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      const decrypted = await decryptActiveSubmission(sub);
 
       // optimistic local update: submissions & binItems & activeSubmission
       setSubmissions((prev) =>
