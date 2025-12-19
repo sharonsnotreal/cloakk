@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -102,6 +102,15 @@ const LoginButton = styled.button`
   }
 `;
 
+const RegisterText = styled.span`
+font-size: 0.9rem;
+font-weight: 600;
+color: ${({theme}) => theme.primary||'#4f46e5'};
+cursor: pointer;
+transition: color 100ms ease, opacity 100ms ease;
+&: hover {opacity 0.85; text-decoration: underline};
+`
+
 const LogoImage = styled.img`
   width: 200px;
 
@@ -163,6 +172,7 @@ const AdminLoginPage = () => {
                     <label>Password</label>
                     <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
                     <LoginButton type="submit" disabled={loading}>Login Admin</LoginButton>
+                    <RegisterText onClick={() => navigate("/admin/register")}>Register</RegisterText>
                     {error && <ErrorMessage>{error}</ErrorMessage>}
                 </FormPanel>
                 <LogoPanel>

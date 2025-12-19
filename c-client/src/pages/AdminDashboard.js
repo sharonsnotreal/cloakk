@@ -1,5 +1,5 @@
 // // src/pages/AdminDashboard.js
-import React, {
+import {
   useState,
   useEffect,
   useCallback,
@@ -14,9 +14,7 @@ import * as openpgp from "openpgp";
 import {
   FiInbox,
   FiTrash2,
-  FiArchive,
   FiLogOut,
-  FiEdit,
   FiChevronLeft,
   FiChevronRight,
   FiSearch,
@@ -666,7 +664,7 @@ const AdminDashboard = () => {
       await axios.put(`${base}/api/submissions/${id}`, updateData, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const decrypted = await decryptActiveSubmission(sub);
+    //  const decrypted = await decryptActiveSubmission(sub);
 
       // optimistic local update: submissions & binItems & activeSubmission
       setSubmissions((prev) =>
@@ -874,13 +872,6 @@ const AdminDashboard = () => {
           >
             <FiTrash2 /> Trash
           </NavItem>
-          <NavItem
-            onClick={() => {
-              alert("Archive feature not implemented yet.");
-            }}
-          >
-            <FiArchive /> Archive
-          </NavItem>
         </NavGroup>
 
         <div style={{ marginTop: "auto" }}>
@@ -1070,7 +1061,6 @@ const AdminDashboard = () => {
                       /* TODO: next navigation */
                     }}
                   />
-                  <FiEdit onClick={() => alert("Edit not implemented")} />
 
                   {activeSubmission.isViewed ? (
                     <FiEyeOff

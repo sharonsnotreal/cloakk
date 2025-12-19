@@ -102,6 +102,15 @@ const LoginButton = styled.button`
   }
 `;
 
+const LoginText = styled.span`
+font-size: 0.9rem;
+font-weight: 600;
+color: ${({theme}) => theme.primary||'#4f46e5'};
+cursor: pointer;
+transition: color 100ms ease, opacity 100ms ease;
+&: hover {opacity 0.85; text-decoration: underline};
+`
+
 const LogoImage = styled.img`
   width: 200px;
 
@@ -163,6 +172,7 @@ const AdminRegisterPage = () => {
                     <label>Password</label>
                     <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
                     <LoginButton type="submit" disabled={loading}>Signup Admin</LoginButton>
+                    <LoginText onClick={() => navigate("/admin/login")}>Log In</LoginText>
                     {error && <ErrorMessage>{error}</ErrorMessage>}
                 </FormPanel>
                 <LogoPanel>
