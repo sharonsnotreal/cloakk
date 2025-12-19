@@ -58,23 +58,23 @@ const buffer = req.file.buffer;
     }
 
     // 3. If clean, save the file to the local disk instead
-    const uploadsDir = path.join(__dirname, "..", "uploads");
+    // const uploadsDir = path.join(__dirname, "..", "uploads");
 
-    // Create the 'uploads' directory if it doesn't exist
-    if (!fs.existsSync(uploadsDir)) {
-      fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+    // // Create the 'uploads' directory if it doesn't exist
+    // if (!fs.existsSync(uploadsDir)) {
+    //   fs.mkdirSync(uploadsDir, { recursive: true });
+    // }
 
-    const uniqueFilename = `${Date.now()}-${req.file.originalname}`;
-    const filePath = path.join(uploadsDir, uniqueFilename);
+    // const uniqueFilename = `${Date.now()}-${req.file.originalname}`;
+    // const filePath = path.join(uploadsDir, uniqueFilename);
     
 
-    // Write the file from buffer to the disk
-    fs.writeFileSync(filePath, buffer);
+    // // Write the file from buffer to the disk
+    // fs.writeFileSync(filePath, buffer);
 
-    // Attach the public-facing path to the request object for the controller
-    // This will be used to construct the URL to access the file
-    req.file.path = `/uploads/${uniqueFilename}`;
+    // // Attach the public-facing path to the request object for the controller
+    // // This will be used to construct the URL to access the file
+    // req.file.path = `/uploads/${uniqueFilename}`;
     next();
   } catch (err) {
     console.error(

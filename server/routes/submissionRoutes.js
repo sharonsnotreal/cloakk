@@ -6,15 +6,16 @@ const {
   updateSubmission,
   deleteSubmission,
   getDeletedSubmissions,
+  restoreSubmission,
 } = require("../controller/submissionController");
 const { protect } = require("../middleware/authMiddleware");
-const {upload, fileCheck} = require("../middleware/upload-Middleware");
+const { upload, fileCheck } = require("../middleware/upload-Middleware");
 const timeRestriction = require("../middleware/timeRestriction-Middleware");
 const { scanAndUpload } = require("../middleware/scanMiddleWare");
 // Public route for creating submissions with time restriction and file upload
 router.post(
   "/",
-  // timeRestriction,
+  timeRestriction,
   // upload.single("file"),
   upload.array("files", 5),
   // fileCheck,
@@ -27,5 +28,5 @@ router.get("/", protect, getAllSubmissions);
 router.get("/bin", protect, getDeletedSubmissions);
 router.put("/:id", protect, updateSubmission);
 router.delete("/:id", protect, deleteSubmission);
-
+router.patch("/:id/restore", protect, restoreSubmission);
 module.exports = router;

@@ -1,5 +1,11 @@
 // // src/pages/AdminDashboard.js
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+} from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import styled from "styled-components";
 import axios from "axios";
@@ -367,7 +373,7 @@ const AdminDashboard = () => {
   // UI state
   const [view, setView] = useState("inbox"); // inbox | bin
   const [filters, setFilters] = useState({ viewed: "all", flagged: "all" });
-  const [searchTerm, setSearchTerm] = useState("");
+
   const [sortBy, setSortBy] = useState("createdAt_desc");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -380,6 +386,10 @@ const AdminDashboard = () => {
   const [limit, setLimit] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // serach term
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   const mountedRef = useRef(false);
 
@@ -408,8 +418,6 @@ const AdminDashboard = () => {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError("");
-    // reset active selection only when view/list changes
-    // setActiveSubmission(null);
 
     const token = getToken();
     if (!token) {
@@ -421,68 +429,71 @@ const AdminDashboard = () => {
       const base = process.env.REACT_APP_API_URL || "http://localhost:5000";
       const params = buildParams();
       const query = new URLSearchParams(params).toString();
+
+      // 🔐 helper: decrypt a list once
+      const decryptList = async (items, viewName) => {
+        return Promise.all(
+          items.map(async (item) => {
+            try {
+              const decrypted = await decryptActiveSubmission(item);
+              return { ...decrypted, view: viewName };
+            } catch {
+              return { ...item, view: viewName };
+            }
+          })
+        );
+      };
+
       if (view === "bin") {
-        // bin route
         const res = await axios.get(`${base}/api/submissions/bin?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // server expected to return { items: [], total: N } OR plain array
-        const data = res.data;
-        if (Array.isArray(data)) {
-          setBinItems(data);
-          setTotalCount(data.length);
-          setTotalPages(1);
-        } else {
-          setBinItems(data.items || []);
-          setTotalCount(data.total || (data.items || []).length);
-          setTotalPages(
-            Math.max(
-              1,
-              Math.ceil((data.total || (data.items || []).length) / limit)
-            )
-          );
-        }
+        const rawItems = Array.isArray(res.data)
+          ? res.data
+          : res.data.items || [];
 
-        if ((res.data && (res.data.items || res.data).length) > 0) {
-          // choose first item as active only if none active or view changed
+        const decryptedItems = await decryptList(rawItems, "bin");
+
+        setBinItems(decryptedItems);
+        setTotalCount(res.data.total || decryptedItems.length);
+        setTotalPages(
+          Math.max(
+            1,
+            Math.ceil((res.data.total || decryptedItems.length) / limit)
+          )
+        );
+
+        if (decryptedItems.length > 0) {
           if (!activeSubmission || activeSubmission.view !== "bin") {
-            setActiveSubmission(
-              ((Array.isArray(res.data) ? res.data : res.data.items) ||
-                [])[0] || null
-            );
+            setActiveSubmission(decryptedItems[0]);
           }
         } else {
           setActiveSubmission(null);
         }
       } else {
-        // inbox route
         const res = await axios.get(`${base}/api/submissions?${query}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        const data = res.data;
-        if (Array.isArray(data)) {
-          setSubmissions(data);
-          setTotalCount(data.length);
-          setTotalPages(1);
-        } else {
-          setSubmissions(data.items || []);
-          setTotalCount(data.total || (data.items || []).length);
-          setTotalPages(
-            Math.max(
-              1,
-              Math.ceil((data.total || (data.items || []).length) / limit)
-            )
-          );
-        }
+        const rawItems = Array.isArray(res.data)
+          ? res.data
+          : res.data.items || [];
 
-        if ((res.data && (res.data.items || res.data).length) > 0) {
+        const decryptedItems = await decryptList(rawItems, "inbox");
+
+        setSubmissions(decryptedItems);
+        setTotalCount(res.data.total || decryptedItems.length);
+        setTotalPages(
+          Math.max(
+            1,
+            Math.ceil((res.data.total || decryptedItems.length) / limit)
+          )
+        );
+
+        if (decryptedItems.length > 0) {
           if (!activeSubmission || activeSubmission.view !== "inbox") {
-            setActiveSubmission(
-              ((Array.isArray(res.data) ? res.data : res.data.items) ||
-                [])[0] || null
-            );
+            setActiveSubmission(decryptedItems[0]);
           }
         } else {
           setActiveSubmission(null);
@@ -500,10 +511,9 @@ const AdminDashboard = () => {
     page,
     limit,
     sortBy,
-    searchTerm,
+    // searchTerm,
     filters.flagged,
     filters.viewed,
-    // activeSubmission,
   ]);
 
   useEffect(() => {
@@ -523,7 +533,50 @@ const AdminDashboard = () => {
     filters.viewed,
   ]);
 
-  // ---------- OpenPGP decryption function ----------
+  const visibleItems = useMemo(() => {
+    const source = view === "bin" ? binItems : submissions;
+    if (!debouncedSearchTerm) return source;
+
+    const words = debouncedSearchTerm
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean);
+
+    return source.filter((s) => {
+      const stack = [s.plainTextMessage, s.receiptCode, s.senderEmail]
+        .join(" ")
+        .toLowerCase();
+
+      return words.every((w) => stack.includes(w));
+    });
+  }, [view, binItems, submissions, debouncedSearchTerm]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300); // 300ms debounce
+
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
+  const highlightText = (text, term) => {
+    if (!term) return text;
+
+    const words = term.split(/\s+/).filter(Boolean);
+    const regex = new RegExp(`(${words.join("|")})`, "gi");
+
+    return text.split(regex).map((part, i) =>
+      regex.test(part) ? (
+        <mark key={i} style={{ backgroundColor: "#fde68a" }}>
+          {part}
+        </mark>
+      ) : (
+        part
+      )
+    );
+  };
+
+  // ----------  decryption function ----------
   const decryptActiveSubmission = async (submission) => {
     if (!submission) return null;
 
@@ -579,15 +632,20 @@ const AdminDashboard = () => {
     setActiveSubmission({ ...sub, _loading: true });
     try {
       const decrypted = await decryptActiveSubmission(sub);
-      // mark where it came from
       decrypted.view = view;
-      setActiveSubmission(decrypted); 
-    
 
-      // If not viewed yet, mark as viewed automatically (server + local)
-      if (!decrypted.isViewed) {
-        // update server
-        handleUpdate(decrypted._id, { isViewed: true }).catch(() => {});
+      // update active submission
+      setActiveSubmission(decrypted);
+
+      // update the list so encrypted version is replaced
+      if (view === "inbox") {
+        setSubmissions((prev) =>
+          prev.map((s) => (s._id === decrypted._id ? decrypted : s))
+        );
+      } else {
+        setBinItems((prev) =>
+          prev.map((s) => (s._id === decrypted._id ? decrypted : s))
+        );
       }
     } catch (err) {
       console.error("open submission error", err);
@@ -636,11 +694,23 @@ const AdminDashboard = () => {
       const base = process.env.REACT_APP_API_URL || "http://localhost:5000";
       if (view === "bin") {
         // Restore action - call restore endpoint or update deleted:false
-        // Try PUT /api/submissions/:id/restore first, fall back to updating deleted flag
         try {
-          await axios.post(`${base}/api/submissions/${id}/restore`, null, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          const res = await axios.patch(
+            `${base}/api/submissions/${id}/restore`,
+            null,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          const restored = res.data.submission;
+
+          //  REMOVE from bin
+          setBinItems((prev) => prev.filter((i) => i._id !== restored._id));
+
+          //  ADD back to inbox
+          setSubmissions((prev) => [restored, ...prev]);
+          setActiveSubmission(null);
+          // setActiveSubmission(restored);
         } catch (e) {
           // fallback
           await axios.put(
@@ -679,12 +749,20 @@ const AdminDashboard = () => {
   };
 
   const renderSnippet = (s) => {
-    if (!s) return "";
-    if (s.plainTextMessage) return s.plainTextMessage.slice(0, 140);
-    if (s.textMessage && typeof s.textMessage === "string")
-      return s.textMessage.slice(0, 140);
-    return "Encrypted message";
+    const text = s.plainTextMessage?.slice(0, 140) || "Encrypted message";
+
+    return highlightText(text, debouncedSearchTerm);
   };
+
+  useEffect(() => {
+    if (!activeSubmission) return;
+
+    const exists = visibleItems.some((i) => i._id === activeSubmission._id);
+
+    if (!exists && visibleItems.length > 0) {
+      setActiveSubmission(visibleItems[0]);
+    }
+  }, [visibleItems, activeSubmission]);
 
   /* ---------- UI RENDER ---------- */
   return (
@@ -884,7 +962,7 @@ const AdminDashboard = () => {
                 <div style={{ padding: 16, color: "#6b7280" }}>No messages</div>
               )}
 
-            {!loading &&
+            {/* {!loading &&
               (view === "inbox" ? submissions : binItems).map((s) => (
                 <MessageListItem
                   key={s._id}
@@ -899,6 +977,26 @@ const AdminDashboard = () => {
                       #{s.receiptCode} —{" "}
                       {new Date(s.createdAt).toLocaleDateString()}
                     </div>
+                    <div className="excerpt">{renderSnippet(s)}</div>
+                  </div>
+                </MessageListItem>
+              ))} */}
+            {!loading &&
+              visibleItems.map((s) => (
+                <MessageListItem
+                  key={s._id}
+                  active={activeSubmission?._id === s._id}
+                  onClick={() => handleOpenSubmission(s)}
+                >
+                  <div style={{ width: 8 }}>
+                    {!s.isViewed && <span className="dot" title="Unread" />}
+                  </div>
+                  <div className="meta">
+                    <div className="title">
+                      #{s.receiptCode}{" "}
+                      {new Date(s.createdAt).toLocaleDateString()}
+                    </div>
+
                     <div className="excerpt">{renderSnippet(s)}</div>
                   </div>
                 </MessageListItem>
@@ -1000,7 +1098,7 @@ const AdminDashboard = () => {
                       handleUpdate(activeSubmission._id, {
                         isFlagged:
                           activeSubmission.isFlagged === "important"
-                            ? "none"
+                            ? "normal"
                             : "important",
                       })
                     }
@@ -1022,7 +1120,7 @@ const AdminDashboard = () => {
                       handleUpdate(activeSubmission._id, {
                         isFlagged:
                           activeSubmission.isFlagged === "urgent"
-                            ? "none"
+                            ? "normal"
                             : "urgent",
                       })
                     }
@@ -1058,9 +1156,7 @@ const AdminDashboard = () => {
                 {!activeSubmission._loading && (
                   <>
                     <div style={{ marginBottom: 10, color: "#111827" }}>
-                      {activeSubmission.plainTextMessage ??
-                        activeSubmission.textMessage ??
-                        "Encrypted message"}
+                      {activeSubmission.plainTextMessage || "Encrypted message"}
                     </div>
 
                     {/* decrypted files (if server returns decryptedFiles when decrypted) */}
@@ -1068,24 +1164,21 @@ const AdminDashboard = () => {
                       activeSubmission.files.map((f, idx) => {
                         const name =
                           f.originalName || f.name || `attachment-${idx + 1}`;
-                        const url =
-                          f.url ||
-                          (f.blob ? URL.createObjectURL(f.blob) : null);
+                        const path = f.path;
                         return (
                           <div key={idx} style={{ marginTop: 8 }}>
-                            {url ? (
-                              <a
-                                href={url}
+                            {path ? (
+                              <Attachment
+                                href={`${
+                                  process.env.REACT_APP_API_URL ||
+                                  "http://localhost:5000"
+                                }${f.path}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                style={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  gap: 8,
-                                }}
                               >
-                                <FiDownload /> {name}
-                              </a>
+                                <FiDownload />
+                                {f.originalName || "Download Attachment"}
+                              </Attachment>
                             ) : (
                               <div style={{ color: "#6b7280" }}>
                                 {name} (not available)

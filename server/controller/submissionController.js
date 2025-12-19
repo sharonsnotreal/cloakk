@@ -2,6 +2,16 @@ const asyncHandler = require("express-async-handler");
 const { v4: uuidv4 } = require("uuid");
 const Submission = require("../models/submission");
 const AuditLog = require("../models/auditlog");
+
+
+// const path = require("path");
+
+const normalizeFilePath = (filePath) => {
+  return filePath
+    .replace(/\\/g, "/") // convert Windows slashes to URL slashes
+    .replace(/\/+/g, "/"); // remove duplicate slashes
+};
+
 // const xss = require("xss");
 
 // Generate a random receipt code
@@ -40,7 +50,7 @@ const createSubmission = asyncHandler(async (req, res) => {
   if (files.length > 0) {
     submissionData.files = files.map((f) => ({
       originalName: f.originalname,
-      path: f.path || null,
+      path: `/${normalizeFilePath(f.path)}` || null,
       filename: f.filename || null,
       mimetype: f.mimetype || null,
       size: f.size || null,
@@ -155,10 +165,44 @@ const updateSubmission = asyncHandler(async (req, res) => {
     submission: updated,
   });
 });
+
+
+const restoreSubmission = asyncHandler(async (req, res) => {
+  const submission = await Submission.findById(req.params.id);
+
+  if (!submission) {
+    res.status(404);
+    throw new Error("Submission not found");
+  }
+
+  if (!submission.isDeleted) {
+    res.status(400);
+    throw new Error("Submission is not deleted");
+  }
+
+  submission.isDeleted = false;
+  submission.deletedAt = null;
+  submission.deletedBy = null;
+
+  await submission.save();
+
+  await AuditLog.create({
+    adminId: req.admin.id,
+    action: "Restored submission",
+    submissionId: submission._id,
+  });
+
+  res.status(200).json({
+    message: "Submission restored successfully",
+    submission,
+  });
+});
+
 module.exports = {
   createSubmission,
   getAllSubmissions,
   deleteSubmission,
   updateSubmission,
   getDeletedSubmissions,
+  restoreSubmission
 };
